@@ -95,6 +95,7 @@ Result:
 ## How To Use
 1. Select "Kandinsky" in the scripts section
 2. Set "Prior Inference Steps". Increasing the value improves the results, but it reaches a plateau at around 128. Beyond that, the image may change, but the quality remains consistent.
+3. The model will start downloading automatically if needed.
 
 ### Image Mixing
 #### Prompt + Image
