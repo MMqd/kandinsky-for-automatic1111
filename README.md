@@ -5,6 +5,8 @@ Adds a script that runs the Kandinsky 2.1 model.
 
 ALPHA VERSION NOT PRODUCTION-READY
 
+<strong>!!Note!!</strong> Progress bar not yet supported.
+
 ## Examples
 The following are non cherry-picked examples, with various settings and resolutions.
 
