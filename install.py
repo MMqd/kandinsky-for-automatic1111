@@ -3,7 +3,7 @@ import pip
 pip.main(['install', 'git+https://github.com/huggingface/diffusers'])
 
 # Remove Diffusers Version Requirement
-filename = '../../requirements.txt'
+filename = 'requirements.txt'
 
 with open(filename, 'r') as file:
     lines = file.readlines()
