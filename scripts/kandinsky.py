@@ -79,6 +79,8 @@ class Script(scripts.Script):
             #shared.opts.sd_model_checkpoint = None
 
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+            #os.environ["TRANSFORMERS_CACHE"] = "models/Kandinsky"
+            cache_dir="models/Kandinsky"
 
             torch.backends.cudnn.benchmark = False
             torch.use_deterministic_algorithms(True)
@@ -95,7 +97,7 @@ class Script(scripts.Script):
             pipe_prior = getattr(shared, 'pipe_prior', None)
 
             if pipe_prior == None:
-                pipe_prior = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1-prior", torch_dtype=torch.float16)
+                pipe_prior = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1-prior", torch_dtype=torch.float16, cache_dir=cache_dir)
                 pipe_prior.to("cuda")
                 #pipe_prior.enable_sequential_cpu_offload()
                 pipe_prior.enable_attention_slicing(self.attention_type)
@@ -170,7 +172,7 @@ class Script(scripts.Script):
                             pipe = None
                             gc.collect()
                             devices.torch_gc()
-                        pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16)#, scheduler=dpm)
+                        pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
                         pipe.to("cuda")
                         #pipe.enable_sequential_cpu_offload()
                         pipe.enable_attention_slicing(self.attention_type)
@@ -194,7 +196,7 @@ class Script(scripts.Script):
                                 gc.collect()
                                 devices.torch_gc()
 
-                            pipe = KandinskyImg2ImgPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16)#, scheduler=dpm)
+                            pipe = KandinskyImg2ImgPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
                             #pipe.enable_sequential_cpu_offload()
                             pipe.enable_attention_slicing(self.attention_type)
                             pipe.unet.to(memory_format=torch.channels_last)
@@ -216,7 +218,7 @@ class Script(scripts.Script):
                                 pipe = None
                                 gc.collect()
                                 devices.torch_gc()
-                            pipe = KandinskyInpaintPipeline.from_pretrained("kandinsky-community/kandinsky-2-1-inpaint", variant="fp16", torch_dtype=torch.float16)#, scheduler=dpm)
+                            pipe = KandinskyInpaintPipeline.from_pretrained("kandinsky-community/kandinsky-2-1-inpaint", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
                             pipe.to("cuda")
                             #pipe.enable_sequential_cpu_offload()
                             pipe.enable_attention_slicing(self.attention_type)
