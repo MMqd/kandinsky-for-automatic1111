@@ -385,7 +385,7 @@ class KProcessed(processing.Processed):
         self.index_of_first_image = index_of_first_image
         self.styles = p.styles
         self.job_timestamp = state.job_timestamp
-        #self.clip_skip = p.clip_skip
+        self.clip_skip = 1
         self.eta = p.eta
         self.ddim_discretize = p.ddim_discretize
         self.s_churn = p.s_churn
