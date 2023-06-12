@@ -118,6 +118,7 @@ Result:
 * It is very easy to "overcook" images with prompts, if this happens remove keywords or reduce CFG scale
     * Negative prompts aren't needed, so "low quality, bad quality..." can be ommited
     * Short positive prompts are good, too many keywords confuse the ai
+* Ignore the warning "Pipelines loaded with torch_dtype=torch.float16 cannot run with cpu device..." the model is being moved to save vram
 
 ## Features
 * Text to image
