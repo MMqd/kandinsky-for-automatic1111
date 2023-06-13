@@ -11,6 +11,7 @@ import gc
 
 class Script(scripts.Script):
     attention_type = 'auto'#'max'
+    cache_dir="models/Kandinsky"
     #img2_name = ""
 
     def title(self):
@@ -18,15 +19,16 @@ class Script(scripts.Script):
 
     def ui(self, is_img2img):
         inference_steps = gr.inputs.Slider(minimum=2, maximum=1024, step=1, label="Prior Inference Steps", default=128)
+        prior_cfg_scale = gr.inputs.Slider(minimum=1, maximum=20, step=0.5, label="Prior CFG SCale", default=4)
 
         with gr.Accordion("Image Mixing", open=False):
             img1_strength = gr.inputs.Slider(minimum=-2, maximum=2, label="Interpolate Image 1 Strength", default=0.5)
             img2_strength = gr.inputs.Slider(minimum=-2, maximum=2, label="Interpolate Image 2 Strength (image below)", default=0.5)
             extra_image = gr.inputs.Image()
 
-        return [extra_image, inference_steps, img1_strength, img2_strength]#, img2_name]
+        return [extra_image, inference_steps, prior_cfg_scale, img1_strength, img2_strength]#, img2_name]
     
-    def mix_images(self, p, pipe, pipe_prior, generation_parameters, img1_strength, img2_strength, inference_steps, img1, img2, generators):#, img2_name
+    def mix_images(self, p, pipe, pipe_prior, generation_parameters, img1_strength, img2_strength, inference_steps, prior_cfg_scale, img1, img2, generators):#, img2_name
         generation_parameters = dict(generation_parameters)
         pipe.to("cpu")
         pipe_prior.to("cuda")
@@ -38,7 +40,7 @@ class Script(scripts.Script):
                 num_images_per_prompt = 1,
                 #num_images_per_prompt = p.batch_size,
                 generator=generators,
-                guidance_scale=p.cfg_scale).to_tuple()
+                guidance_scale=prior_cfg_scale).to_tuple()
         generation_parameters["image_embeds"] = image_embeds
         generation_parameters["negative_image_embeds"] = negative_image_embeds
 
@@ -50,7 +52,7 @@ class Script(scripts.Script):
         #pdb.set_trace()
 
         if not isinstance(pipe, KandinskyPipeline) or pipe == None:
-            pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16)#, scheduler=dpm)
+            pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
             pipe.to("cuda")
             #pipe.enable_sequential_cpu_offload()
             pipe.enable_attention_slicing(self.attention_type)
@@ -63,7 +65,7 @@ class Script(scripts.Script):
         pipe.to("cpu")
         return result
 
-    def run(self, p, extra_image, inference_steps, img1_strength, img2_strength):#, img2_name):
+    def run(self, p, extra_image, inference_steps, prior_cfg_scale, img1_strength, img2_strength):#, img2_name):
         try:
             #img2_name = extra_image.name
             if not isinstance(shared.sd_model, str):
@@ -80,7 +82,6 @@ class Script(scripts.Script):
 
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
             #os.environ["TRANSFORMERS_CACHE"] = "models/Kandinsky"
-            cache_dir="models/Kandinsky"
 
             torch.backends.cudnn.benchmark = False
             torch.use_deterministic_algorithms(True)
@@ -97,7 +98,7 @@ class Script(scripts.Script):
             pipe_prior = getattr(shared, 'pipe_prior', None)
 
             if pipe_prior == None:
-                pipe_prior = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1-prior", torch_dtype=torch.float16, cache_dir=cache_dir)
+                pipe_prior = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1-prior", torch_dtype=torch.float16, cache_dir=self.cache_dir)
                 pipe_prior.to("cuda")
                 #pipe_prior.enable_sequential_cpu_offload()
                 pipe_prior.enable_attention_slicing(self.attention_type)
@@ -118,8 +119,9 @@ class Script(scripts.Script):
             p.extra_generation_params["Inference Steps"] = inference_steps
             p.extra_generation_params["Model"] = "kandinsky21"
             p.extra_generation_params["Model hash"] = "kandinsk21"
+            p.extra_generation_params["Prior CFG Scale"] = prior_cfg_scale
 
-            prior_settings_dict = {"generator": generators, "prompt": p.prompt}
+            prior_settings_dict = {"generator": generators, "prompt": p.prompt, "guidance_scale": prior_cfg_scale}
             prior_settings_dict["num_inference_steps"] = inference_steps
 
             if p.negative_prompt != "":
@@ -172,7 +174,7 @@ class Script(scripts.Script):
                             pipe = None
                             gc.collect()
                             devices.torch_gc()
-                        pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
+                        pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=self.cache_dir)#, scheduler=dpm)
                         pipe.to("cuda")
                         #pipe.enable_sequential_cpu_offload()
                         pipe.enable_attention_slicing(self.attention_type)
@@ -183,9 +185,10 @@ class Script(scripts.Script):
                         
                     result_images = pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
 
+
                     if extra_image != [] and extra_image is not None:
                         for i in range(len(result_images)):
-                            result_images[i] = self.mix_images(p, pipe, pipe_prior, generation_parameters, img1_strength, img2_strength, inference_steps, result_images[i], Image.fromarray(extra_image),# self.img2_name,
+                            result_images[i] = self.mix_images(p, pipe, pipe_prior, generation_parameters, img1_strength, img2_strength, inference_steps, prior_cfg_scale, result_images[i], Image.fromarray(extra_image),# self.img2_name,
                                                                torch.Generator().manual_seed(seed + i + b * p.batch_size))
 
                 else:
@@ -196,7 +199,7 @@ class Script(scripts.Script):
                                 gc.collect()
                                 devices.torch_gc()
 
-                            pipe = KandinskyImg2ImgPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
+                            pipe = KandinskyImg2ImgPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=self.cache_dir)#, scheduler=dpm)
                             #pipe.enable_sequential_cpu_offload()
                             pipe.enable_attention_slicing(self.attention_type)
                             pipe.unet.to(memory_format=torch.channels_last)
@@ -210,7 +213,7 @@ class Script(scripts.Script):
                         if extra_image != [] and extra_image is not None:
                             pipe.to("cpu")
                             for i in range(len(result_images)):
-                                result_images[i] = self.mix_images(p, pipe, pipe_prior, generation_parameters, img1_strength, img2_strength, inference_steps, result_images[i], Image.fromarray(extra_image),# self.img2_name,
+                                result_images[i] = self.mix_images(p, pipe, pipe_prior, generation_parameters, img1_strength, img2_strength, inference_steps, prior_cfg_scale, result_images[i], Image.fromarray(extra_image),# self.img2_name,
                                                                torch.Generator().manual_seed(seed + i + b * p.batch_size))
                     else:
                         if not isinstance(pipe, KandinskyInpaintPipeline) or pipe == None:
@@ -218,7 +221,7 @@ class Script(scripts.Script):
                                 pipe = None
                                 gc.collect()
                                 devices.torch_gc()
-                            pipe = KandinskyInpaintPipeline.from_pretrained("kandinsky-community/kandinsky-2-1-inpaint", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
+                            pipe = KandinskyInpaintPipeline.from_pretrained("kandinsky-community/kandinsky-2-1-inpaint", variant="fp16", torch_dtype=torch.float16, cache_dir=self.cache_dir)#, scheduler=dpm)
                             pipe.to("cuda")
                             #pipe.enable_sequential_cpu_offload()
                             pipe.enable_attention_slicing(self.attention_type)
@@ -259,7 +262,7 @@ class Script(scripts.Script):
 
                         if extra_image != [] and extra_image is not None:
                             for i in range(len(result_images)):
-                                result_images[i] = self.mix_images(p, pipe, pipe_prior, generation_parameters, img1_strength, img2_strength, inference_steps, result_images[i], Image.fromarray(extra_image),# self.img2_name,
+                                result_images[i] = self.mix_images(p, pipe, pipe_prior, generation_parameters, img1_strength, img2_strength, inference_steps, prior_cfg_scale, result_images[i], Image.fromarray(extra_image),# self.img2_name,
                                                                torch.Generator().manual_seed(seed + i + b * p.batch_size))
 
                         if p.inpaint_full_res:
