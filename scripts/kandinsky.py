@@ -7,7 +7,52 @@ from modules import processing, shared, script_callbacks, images, devices, scrip
 from modules.processing import Processed, StableDiffusionProcessing
 from modules.shared import opts, state
 import gc
+from packaging import version
+#import pkg_resources
 #import pdb
+
+class KandinskyModel():
+    cond_stage_key = "edit"
+
+def unload_model():
+    print("Unloaded Stable Diffusion model")
+    #print(type(shared.sd_vae))
+    if not isinstance(shared.sd_model, str):
+        sd_models.unload_model_weights()
+        sd_vae.clear_loaded_vae()
+        devices.torch_gc()
+        gc.collect()
+        torch.cuda.empty_cache()
+        shared.sd_model = KandinskyModel()
+        #sd_vae.clear_loaded_vae()
+
+def reload_model():
+    print("Reloaded Stable Diffusion model")
+    if shared.sd_model is None or isinstance(shared.sd_model, KandinskyModel):
+        shared.sd_model = None
+        sd_models.reload_model_weights()
+        #sd_vae.reload_vae_weights()
+        devices.torch_gc()
+        gc.collect()
+        torch.cuda.empty_cache()
+
+def unload_kandinsky_model():
+    print("Unloaded Kandinsky model")
+    pipe_prior = getattr(shared, 'pipe_prior', None)
+
+    if pipe_prior != None:
+        del shared.pipe_prior
+        devices.torch_gc()
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    pipe = getattr(shared, 'pipe', None)
+
+    if pipe != None:
+        del shared.pipe
+        devices.torch_gc()
+        gc.collect()
+        torch.cuda.empty_cache()
 
 class Script(scripts.Script):
     attention_type = 'auto'#'max'
@@ -18,6 +63,19 @@ class Script(scripts.Script):
         return "Kandinsky"
 
     def ui(self, is_img2img):
+        model_loading_help = gr.Markdown("To save vram unload the Stable Diffusion Model")
+
+        unload_sd_model = gr.Button("Unload Stable Diffusion Model")
+        unload_sd_model.click(unload_model)
+        reload_sd_model = gr.Button("Reload Stable Diffusion Model")
+        reload_sd_model.click(reload_model)
+
+        unload_k_model = gr.Button("Unload Kandinsky Model")
+        unload_k_model.click(unload_kandinsky_model)
+        with gr.Row():
+            unload_sd_model
+            reload_sd_model
+            unload_k_model
         inference_steps = gr.inputs.Slider(minimum=2, maximum=1024, step=1, label="Prior Inference Steps", default=128)
         prior_cfg_scale = gr.inputs.Slider(minimum=1, maximum=20, step=0.5, label="Prior CFG SCale", default=4)
 
@@ -68,10 +126,11 @@ class Script(scripts.Script):
     def run(self, p, extra_image, inference_steps, prior_cfg_scale, img1_strength, img2_strength):#, img2_name):
         try:
             #img2_name = extra_image.name
-            if not isinstance(shared.sd_model, str):
-                sd_models.unload_model_weights()
-                sd_vae.clear_loaded_vae()
-        #        shared.sd_model = "kandinsky"
+            #unload_model()
+      #      if not isinstance(shared.sd_model, str):
+      #          sd_models.unload_model_weights()
+      #          sd_vae.clear_loaded_vae()
+      #  #        shared.sd_model = "kandinsky"
 
             state.begin()
             processing.fix_seed(p)
@@ -80,11 +139,22 @@ class Script(scripts.Script):
             torch.cuda.empty_cache()
             #shared.opts.sd_model_checkpoint = None
 
-            os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
             #os.environ["TRANSFORMERS_CACHE"] = "models/Kandinsky"
 
             torch.backends.cudnn.benchmark = False
-            torch.use_deterministic_algorithms(True)
+            print(torch.version.cuda)
+
+            #try:
+
+            if version.parse(torch.version.cuda) < version.parse("10.2"):
+                torch.use_deterministic_algorithms(True)
+            else:
+                os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
+            #except pkg_resources.DistributionNotFound:
+            #    print(f'CUDA not found')
+            #os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
             torch.manual_seed(0)
 
             init_image = getattr(p, 'init_images', None)
@@ -118,7 +188,7 @@ class Script(scripts.Script):
 
             p.extra_generation_params["Inference Steps"] = inference_steps
             p.extra_generation_params["Model"] = "kandinsky21"
-            p.extra_generation_params["Model hash"] = "kandinsk21"
+            p.extra_generation_params["Model hash"] = "0000000000"
             p.extra_generation_params["Prior CFG Scale"] = prior_cfg_scale
 
             prior_settings_dict = {"generator": generators, "prompt": p.prompt, "guidance_scale": prior_cfg_scale}
@@ -283,6 +353,18 @@ class Script(scripts.Script):
                                 image.convert('RGB')
                                 processing.apply_color_correction(processing.setup_color_correction(init_image), image)
                                 result_images[i] = image
+                        else:
+                            for i in range(len(result_images)):
+                                base_image = result_images[i]
+                                base_image = base_image.convert('RGBA')
+                                mask = ImageOps.invert(mask)
+                                mask = mask.convert('L')
+
+                                image = init_image
+                                image = image.convert('RGBA')
+                                image.alpha_composite(base_image)
+                                image.convert('RGB')
+                                result_images[i] = image
 
 
                 for imgid in range(len(result_images)):
@@ -310,8 +392,9 @@ class Script(scripts.Script):
             state.end()
             #shared.sd_model = None
 
-            sd_models.reload_model_weights()
-            sd_vae.reload_vae_weights()
+            #reload_model()
+            #sd_models.reload_model_weights()
+            #sd_vae.reload_vae_weights()
             #pdb.post_mortem()
 
             return KProcessed(p, all_result_images, p.seed, initial_info, all_seeds=all_seeds)

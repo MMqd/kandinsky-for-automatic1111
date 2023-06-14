@@ -3,7 +3,6 @@ import pip
 # Get diffusers>=0.17.1 to add Kandinsky pipeline support
 filename = 'requirements.txt'
 import os
-import re
 import subprocess
 from packaging import version
 import pkg_resources
@@ -20,9 +19,9 @@ if os.path.isfile(filename):
     with open(filename, 'w') as file:
         for line in lines:
             if line.startswith(f'{package_name}=='):
-                version_str = re.search(r'\d+\.\d+\.\d+', line)
-                if version_str:
-                    current_version = version.parse(version_str.group())
+                version_str = line[len(package_name) + 2:]
+                if version_str != "":
+                    current_version = version.parse(version_str)
                     print(f"Incompatible {package_name} version {current_version} in requirements.txt")
                     if current_version < target_version:
                         corrent_version_in_requirements = False
@@ -32,7 +31,6 @@ if os.path.isfile(filename):
 
     if corrent_version_in_requirements:
         print(f"Correct {package_name} version in requriments.txt")
-
 
 try:
     current_version = version.parse(pkg_resources.get_distribution(package_name).version)
