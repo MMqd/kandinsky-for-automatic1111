@@ -17,7 +17,11 @@ class KandinskyModel():
 def unload_model():
     print("Unloaded Stable Diffusion model")
     #print(type(shared.sd_vae))
-    if not isinstance(shared.sd_model, str):
+    if shared.sd_model is None:
+        shared.sd_model = KandinskyModel()
+        return
+
+    if not isinstance(shared.sd_model, KandinskyModel):
         sd_models.unload_model_weights()
         sd_vae.clear_loaded_vae()
         devices.torch_gc()
@@ -25,6 +29,7 @@ def unload_model():
         torch.cuda.empty_cache()
         shared.sd_model = KandinskyModel()
         #sd_vae.clear_loaded_vae()
+
 
 def reload_model():
     print("Reloaded Stable Diffusion model")
