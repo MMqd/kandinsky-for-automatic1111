@@ -147,7 +147,7 @@ class Script(scripts.Script):
             #os.environ["TRANSFORMERS_CACHE"] = "models/Kandinsky"
 
             torch.backends.cudnn.benchmark = False
-            print(torch.version.cuda)
+            #print(torch.version.cuda)
 
             #try:
 

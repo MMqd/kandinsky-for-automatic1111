@@ -1,11 +1,12 @@
 import pip
-
-# Get diffusers>=0.17.1 to add Kandinsky pipeline support
-filename = 'requirements.txt'
 import os
 import subprocess
 from packaging import version
 import pkg_resources
+from modules.paths_internal import script_path
+
+# Get diffusers>=0.17.1 to add Kandinsky pipeline support
+filename = os.path.join(script_path, 'requirements.txt')
 
 target_version = version.parse('0.17.1')
 package_name = 'diffusers'
