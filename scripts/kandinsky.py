@@ -358,18 +358,18 @@ class Script(scripts.Script):
                                 image.convert('RGB')
                                 processing.apply_color_correction(processing.setup_color_correction(init_image), image)
                                 result_images[i] = image
-                        else:
-                            for i in range(len(result_images)):
-                                base_image = result_images[i]
-                                base_image = base_image.convert('RGBA')
-                                mask = ImageOps.invert(mask)
-                                mask = mask.convert('L')
+                        #else:
+                        #    for i in range(len(result_images)):
+                        #        base_image = result_images[i]
+                        #        base_image = base_image.convert('RGBA')
+                        #        mask = ImageOps.invert(mask)
+                        #        mask = mask.convert('L')
 
-                                image = init_image
-                                image = image.convert('RGBA')
-                                image.alpha_composite(base_image)
-                                image.convert('RGB')
-                                result_images[i] = image
+                        #        image = init_image
+                        #        image = image.convert('RGBA')
+                        #        image.alpha_composite(base_image)
+                        #        image.convert('RGB')
+                        #        result_images[i] = image
 
 
                 for imgid in range(len(result_images)):
