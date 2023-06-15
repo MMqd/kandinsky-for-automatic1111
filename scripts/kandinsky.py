@@ -15,10 +15,10 @@ class KandinskyModel():
     cond_stage_key = "edit"
 
 def unload_model():
-    print("Unloaded Stable Diffusion model")
     #print(type(shared.sd_vae))
     if shared.sd_model is None:
         shared.sd_model = KandinskyModel()
+        print("Unloaded Stable Diffusion model")
         return
 
     if not isinstance(shared.sd_model, KandinskyModel):
@@ -32,7 +32,6 @@ def unload_model():
 
 
 def reload_model():
-    print("Reloaded Stable Diffusion model")
     if shared.sd_model is None or isinstance(shared.sd_model, KandinskyModel):
         shared.sd_model = None
         sd_models.reload_model_weights()
@@ -42,7 +41,6 @@ def reload_model():
         torch.cuda.empty_cache()
 
 def unload_kandinsky_model():
-    print("Unloaded Kandinsky model")
     pipe_prior = getattr(shared, 'pipe_prior', None)
 
     if pipe_prior != None:
@@ -58,6 +56,7 @@ def unload_kandinsky_model():
         devices.torch_gc()
         gc.collect()
         torch.cuda.empty_cache()
+    print("Unloaded Kandinsky model")
 
 class Script(scripts.Script):
     attention_type = 'auto'#'max'
