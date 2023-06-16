@@ -39,10 +39,14 @@ try:
 
     if current_version < target_version:
         subprocess.run(['pip', 'install', f'{package_name}>={target_version}'])
+        import importlib
+        importlib.reload(diffusers)
         print(f'{package_name} upgraded to version {target_version}.')
     else:
         print(f'{package_name} is already up to date.')
 
 except pkg_resources.DistributionNotFound:
     subprocess.run(['pip', 'install', f'{package_name}>={target_version}'])
+    import importlib
+    importlib.reload(diffusers)
     print(f'{package_name} installed with version {target_version}.')
