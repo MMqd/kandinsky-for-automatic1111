@@ -373,9 +373,9 @@ class Script(scripts.Script):
 
                 for imgid in range(len(result_images)):
                     if type(p.prompt) != list:
-                        images.save_image(result_images[imgid], p.outpath_samples, "", all_seeds[imgid], p.prompt, opts.samples_format, info=initial_infos[imgid], p=p)
+                        images.save_image(result_images[imgid], p.outpath_samples, "", all_seeds[imgid], p.prompt[:75], opts.samples_format, info=initial_infos[imgid], p=p)
                     else:
-                        images.save_image(result_images[imgid], p.outpath_samples, "", all_seeds[imgid], p.prompt[0], opts.samples_format, info=initial_info[imgid], p=p)
+                        images.save_image(result_images[imgid], p.outpath_samples, "", all_seeds[imgid], p.prompt[0][:75], opts.samples_format, info=initial_info[imgid], p=p)
 
                 all_result_images.extend(result_images)
 
