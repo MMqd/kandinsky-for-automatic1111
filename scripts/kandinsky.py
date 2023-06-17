@@ -111,7 +111,7 @@ def unload_kandinsky_model():
 
 class Script(scripts.Script):
     attention_type = 'auto'#'max'
-    cache_dir="models/Kandinsky"
+    cache_dir = os.path.join(os.path.join(script_path, 'models'), "Kandinsky")
     #img2_name = ""
 
     def title(self):
