@@ -35,7 +35,7 @@ class KandinskyCheckpointInfo(CheckpointInfo):
         self.hash = "0000000000000000000000000000000000000000000000000000000000000000"#model_hash(filename)
         self.sha256 = "0000000000000000000000000000000000000000000000000000000000000000"#hashes.sha256_from_cache(self.filename, "checkpoint/" + name)
         self.shorthash = self.sha256[0:10] if self.sha256 else None
-        self.title = if self.shorthash is None else f'{name} [{self.shorthash}]'
+        self.title = name if self.shorthash is None else f'{name} [{self.shorthash}]'
         self.ids = [self.hash, self.model_name, self.title, name, f'{name} [{self.hash}]'] + ([self.shorthash, self.sha256, f'{self.name} [{self.shorthash}]'] if self.shorthash else [])
         self.metadata = {}
         #_, ext = #os.path.splitext(self.filename)
