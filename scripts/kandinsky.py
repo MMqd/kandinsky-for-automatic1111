@@ -13,10 +13,6 @@ from modules.paths_internal import script_path
 #import pkg_resources
 #import pdb
 
-class KandinskyModel():
-    cond_stage_key = "edit"
-    sd_checkpoint_info = KandinskyCheckpointInfo()
-
 class KandinskyCheckpointInfo(CheckpointInfo):
     def __init__(self, filename="kandinsky21"):
         self.filename = filename
@@ -29,7 +25,8 @@ class KandinskyCheckpointInfo(CheckpointInfo):
         #    name = os.path.basename(filename)
         #if name.startswith("\\") or name.startswith("/"):
         #    name = name[1:]
-        self.name = "kandinsky21"
+        name = "kandinsky21"
+        self.name = name
         self.name_for_extra = "kandinsky21_extra"#os.path.splitext(os.path.basename(filename))[0]
         self.model_name = "kandinsky21"#os.path.splitext(name.replace("/", "_").replace("\\", "_"))[0]
         self.hash = "0000000000000000000000000000000000000000000000000000000000000000"#model_hash(filename)
@@ -62,6 +59,10 @@ class KandinskyCheckpointInfo(CheckpointInfo):
         self.title = f'{self.name} [{self.shorthash}]'
         #self.register()
         return self.shorthash
+
+class KandinskyModel():
+    cond_stage_key = "edit"
+    sd_checkpoint_info = KandinskyCheckpointInfo()
 
 
 def unload_model():
