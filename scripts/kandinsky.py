@@ -6,13 +6,63 @@ from PIL import Image, ImageOps, ImageFilter
 from modules import processing, shared, script_callbacks, images, devices, scripts, masking, sd_models, generation_parameters_copypaste, sd_vae#, sd_samplers
 from modules.processing import Processed, StableDiffusionProcessing
 from modules.shared import opts, state
+from modules.sd_models import CheckpointInfo
 import gc
 from packaging import version
+from modules.paths_internal import script_path
 #import pkg_resources
 #import pdb
 
 class KandinskyModel():
     cond_stage_key = "edit"
+    sd_checkpoint_info = KandinskyCheckpointInfo()
+
+class KandinskyCheckpointInfo(CheckpointInfo):
+    def __init__(self, filename="kandinsky21"):
+        self.filename = filename
+        abspath = os.path.join(os.path.join(script_path, 'models'), "Kandinsky")
+        #if shared.opts.ckpt_dir is not None and abspath.startswith(shared.opts.ckpt_dir):
+        #    name = abspath.replace(shared.opts.ckpt_dir, '')
+        #elif abspath.startswith(model_path):
+        #    name = abspath.replace(model_path, '')
+        #else:
+        #    name = os.path.basename(filename)
+        #if name.startswith("\\") or name.startswith("/"):
+        #    name = name[1:]
+        self.name = "kandinsky21"
+        self.name_for_extra = "kandinsky21_extra"#os.path.splitext(os.path.basename(filename))[0]
+        self.model_name = "kandinsky21"#os.path.splitext(name.replace("/", "_").replace("\\", "_"))[0]
+        self.hash = "0000000000000000000000000000000000000000000000000000000000000000"#model_hash(filename)
+        self.sha256 = "0000000000000000000000000000000000000000000000000000000000000000"#hashes.sha256_from_cache(self.filename, "checkpoint/" + name)
+        self.shorthash = self.sha256[0:10] if self.sha256 else None
+        self.title = if self.shorthash is None else f'{name} [{self.shorthash}]'
+        self.ids = [self.hash, self.model_name, self.title, name, f'{name} [{self.hash}]'] + ([self.shorthash, self.sha256, f'{self.name} [{self.shorthash}]'] if self.shorthash else [])
+        self.metadata = {}
+        #_, ext = #os.path.splitext(self.filename)
+        #if ext.lower() == ".safetensors":
+        #    try:
+        #        self.metadata = read_metadata_from_safetensors(filename)
+        #    except Exception as e:
+        #        errors.display(e, f"reading checkpoint metadata: {filename}")
+
+    def register(self):
+        return
+    #checkpoints_list[self.title] = self
+    #    for i in self.ids:
+    #        checkpoint_aliases[i] = self
+
+    def calculate_shorthash(self):
+        self.sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+        #if self.sha256 is None:
+        #    return
+        self.shorthash = self.sha256[0:10]
+        if self.shorthash not in self.ids:
+            self.ids += [self.shorthash, self.sha256, f'{self.name} [{self.shorthash}]']
+        #checkpoints_list.pop(self.title)
+        self.title = f'{self.name} [{self.shorthash}]'
+        #self.register()
+        return self.shorthash
+
 
 def unload_model():
     #print(type(shared.sd_vae))
