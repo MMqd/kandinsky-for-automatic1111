@@ -1,6 +1,5 @@
 import pip
 import os
-import subprocess
 from packaging import version
 import pkg_resources
 from modules.paths_internal import script_path
@@ -38,11 +37,11 @@ try:
     print(f'Current {package_name} version: {current_version}')
 
     if current_version < target_version:
-        subprocess.run(['pip', 'install', f'{package_name}>={target_version}'])
+        launch.run_pip(f"install {package_name}>={target_version}")
         print(f'{package_name} upgraded to version {target_version}.')
     else:
         print(f'{package_name} is already up to date.')
 
 except pkg_resources.DistributionNotFound:
-    subprocess.run(['pip', 'install', f'{package_name}>={target_version}'])
+    launch.run_pip(f"install {package_name}>={target_version}")
     print(f'{package_name} installed with version {target_version}.')

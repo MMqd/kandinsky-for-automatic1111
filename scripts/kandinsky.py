@@ -1,5 +1,5 @@
 import torch, os
-from diffusers import DiffusionPipeline, KandinskyPipeline, KandinskyImg2ImgPipeline, KandinskyPriorPipeline, KandinskyInpaintPipeline, DPMSolverMultistepScheduler
+from diffusers import DiffusionPipeline, KandinskyPipeline, KandinskyImg2ImgPipeline, KandinskyPriorPipeline, KandinskyInpaintPipeline#, DPMSolverMultistepScheduler
 import gradio as gr
 import numpy as np
 from PIL import Image, ImageOps, ImageFilter
