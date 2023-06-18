@@ -10,6 +10,8 @@ from modules.sd_models import CheckpointInfo
 import gc
 from packaging import version
 from modules.paths_internal import script_path
+import pkg_resources
+import importlib
 #import pkg_resources
 #import pdb
 
@@ -59,6 +61,13 @@ class KandinskyCheckpointInfo(CheckpointInfo):
         self.title = f'{self.name} [{self.shorthash}]'
         #self.register()
         return self.shorthash
+
+#def truncate_fullpath(full_path, encoding='utf-8'):
+#    dir_name, full_name = os.path.split(full_path)
+#    file_name, file_ext = os.path.splitext(full_name)
+#    max_length = os.statvfs(dir_name).f_namemax
+#    file_name_truncated = file_name.encode(encoding)[:max_length - len(file_ext)].decode(encoding, 'ignore')
+#    return os.path.join(dir_name , file_name_truncated + file_ext)
 
 class KandinskyModel():
     cond_stage_key = "edit"
