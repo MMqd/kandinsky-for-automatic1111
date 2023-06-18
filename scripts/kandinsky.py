@@ -64,7 +64,6 @@ class KandinskyModel():
     cond_stage_key = "edit"
     sd_checkpoint_info = KandinskyCheckpointInfo()
 
-
 def unload_model():
     #print(type(shared.sd_vae))
     if shared.sd_model is None:
@@ -165,7 +164,7 @@ class Script(scripts.Script):
         #pdb.set_trace()
 
         if not isinstance(pipe, KandinskyPipeline) or pipe == None:
-            pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
+            pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=self.cache_dir)#, scheduler=dpm)
             pipe.to("cuda")
             #pipe.enable_sequential_cpu_offload()
             pipe.enable_attention_slicing(self.attention_type)
@@ -232,7 +231,7 @@ class Script(scripts.Script):
                 pipe_prior.to("cuda")
 
             seed = int(p.seed)
-            all_seeds = [seed + j for j in range(p.n_iter * p.batch_size)]
+            p.all_seeds = [seed + j for j in range(p.n_iter * p.batch_size)]
 
             if p.batch_size * p.n_iter > 1:
                 generators = []
@@ -285,8 +284,8 @@ class Script(scripts.Script):
                 for batchid in range(p.batch_size):
                     initial_infos.append(self.create_infotext(p,
                                                                 p.all_prompts, 
-                                                                all_seeds, 
-                                                                all_seeds, 
+                                                                p.all_seeds, 
+                                                                p.all_seeds, 
                                                                 iteration=b,
                                                                 position_in_batch=batchid))
 
@@ -414,19 +413,20 @@ class Script(scripts.Script):
                         #        base_image = base_image.convert('RGBA')
                         #        mask = ImageOps.invert(mask)
                         #        mask = mask.convert('L')
+                        #        base_image.putalpha(mask)
 
-                        #        image = init_image
+                        #        image = images.resize_image(1, init_image, p.width, p.height)
                         #        image = image.convert('RGBA')
                         #        image.alpha_composite(base_image)
                         #        image.convert('RGB')
+                        #        processing.apply_color_correction(processing.setup_color_correction(init_image), image)
                         #        result_images[i] = image
 
 
                 for imgid in range(len(result_images)):
-                    if type(p.prompt) != list:
-                        images.save_image(result_images[imgid], p.outpath_samples, "", all_seeds[imgid], p.prompt[:75], opts.samples_format, info=initial_infos[imgid], p=p)
-                    else:
-                        images.save_image(result_images[imgid], p.outpath_samples, "", all_seeds[imgid], p.prompt[0][:75], opts.samples_format, info=initial_info[imgid], p=p)
+                    images.save_image(result_images[imgid], p.outpath_samples, "", p.all_seeds[imgid],
+                                      (p.prompt[0] if isinstance(p.prompt, list) else p.prompt)#[:64]#:images.max_filename_part_length]
+                                      , opts.samples_format, info=initial_infos[imgid], p=p)
 
                 all_result_images.extend(result_images)
 
@@ -441,7 +441,26 @@ class Script(scripts.Script):
             gc.collect()
             devices.torch_gc()
             torch.cuda.empty_cache()
-            initial_info = self.create_infotext(p, p.all_prompts, all_seeds, all_seeds, iteration=0, position_in_batch=0)
+            initial_info = self.create_infotext(p, p.all_prompts, p.all_seeds, p.all_seeds, iteration=0, position_in_batch=0)
+
+            output_images = all_result_images
+
+            # Save Grid
+            index_of_first_image = 0
+            unwanted_grid_because_of_img_count = len(output_images) < 2 and opts.grid_only_if_multiple
+            if (opts.return_grid or opts.grid_save) and not p.do_not_save_grid and not unwanted_grid_because_of_img_count:
+                grid = images.image_grid(output_images, p.batch_size)
+
+                if opts.return_grid:
+                    text = initial_info
+                    if opts.enable_pnginfo:
+                        grid.info["parameters"] = text
+                    output_images.insert(0, grid)
+                    index_of_first_image = 1
+
+                if opts.grid_save:
+                    images.save_image(grid, p.outpath_grids, "grid", p.all_seeds[0], p.all_prompts[0], opts.grid_format, info=initial_info, short_filename=not opts.grid_extended_filename, p=p, grid=True)
+
 
             p.n_iter = 1
             state.end()
@@ -452,7 +471,7 @@ class Script(scripts.Script):
             #sd_vae.reload_vae_weights()
             #pdb.post_mortem()
 
-            return KProcessed(p, all_result_images, p.seed, initial_info, all_seeds=all_seeds)
+            return KProcessed(p, all_result_images, p.seed, initial_info, all_seeds=p.all_seeds)
 
         except RuntimeError as e:
             if getattr(shared, 'pipe_prior', None) != None:
