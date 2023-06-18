@@ -7,6 +7,18 @@ ALPHA VERSION NOT PRODUCTION-READY
 
 <strong>!!Note!!</strong> Progress bar not supported yet.
 
+## Troubleshooting
+* Ignore the warning `Pipelines loaded with torch_dtype=torch.float16 cannot run with cpu device...` the Kandinsky model or prior is being moved to RAM to save VRAM.
+
+* `NameError: name 'DiffusionPipeline' is not defined` or any name error
+    * Usually happens after installation.
+    * <strong>Solution:</strong> Close Automatic1111 completely to finish installing, and open it again.
+
+* `AttributeError: 'KandinskyModel' object has no attribute 'ema_scope'`
+    * The real error is probably `CUDA out of memory` above the `AttributeError`.
+    * <strong>Solution:</strong> In the script section, try reloading the stable diffusion model, and unloading it.
+
+
 ## Examples
 The following are non cherry-picked examples, with various settings and resolutions.
 
@@ -118,7 +130,6 @@ Result:
 * It is very easy to "overcook" images with prompts, if this happens remove keywords or reduce CFG scale
     * Negative prompts aren't needed, so "low quality, bad quality..." can be ommited
     * Short positive prompts are good, too many keywords confuse the ai
-* Ignore the warning "Pipelines loaded with torch_dtype=torch.float16 cannot run with cpu device..." the model is being moved to save vram
 
 ## Features
 * Text to image
