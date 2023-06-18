@@ -3,6 +3,7 @@ import os
 from packaging import version
 import pkg_resources
 from modules.paths_internal import script_path
+from termcolor import colored
 
 # Get diffusers>=0.17.1 to add Kandinsky pipeline support
 filename = os.path.join(script_path, 'requirements.txt')
@@ -39,6 +40,7 @@ try:
     if current_version < target_version:
         launch.run_pip(f"install {package_name}>={target_version}", f"{package_name}>={target_version}")
         print(f'{package_name} upgraded to version {target_version}.')
+        print(colored('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111', 'red', attrs=['bold']))
     else:
         print(f'{package_name} is already up to date.')
 

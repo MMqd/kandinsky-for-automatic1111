@@ -1,5 +1,12 @@
+from termcolor import colored
+
+try:
+    from diffusers import KandinskyPipeline, KandinskyImg2ImgPipeline, KandinskyPriorPipeline, KandinskyInpaintPipeline, DiffusionPipeline#, DPMSolverMultistepScheduler
+except ImportError as e:
+    print(colored('ImportError:', 'red', attrs=['bold']) + " " + colored('Kandinsky', 'green') + " not found in " + colored('diffusers', 'green'))
+    print(colored('Restart Automatic1111 completely after installing kandinsky-for-automatic1111', 'red', attrs=['bold']))
+
 import torch, os
-from diffusers import DiffusionPipeline, KandinskyPipeline, KandinskyImg2ImgPipeline, KandinskyPriorPipeline, KandinskyInpaintPipeline#, DPMSolverMultistepScheduler
 import gradio as gr
 import numpy as np
 from PIL import Image, ImageOps, ImageFilter
