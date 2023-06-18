@@ -1,10 +1,8 @@
+from modules import errors
 try:
     from diffusers import KandinskyPipeline, KandinskyImg2ImgPipeline, KandinskyPriorPipeline, KandinskyInpaintPipeline, DiffusionPipeline#, DPMSolverMultistepScheduler
 except ImportError as e:
-    from colorama import Fore, Style, init
-    init()
-    print(Fore.RED + Style.BRIGHT + 'ImportError:' + Style.RESET_ALL + " " + Fore.GREEN + 'Kandinsky' + Style.RESET_ALL + " not found in " + Fore.GREEN + 'diffusers' + Style.RESET_ALL)
-    print(Fore.RED + Style.BRIGHT + 'Restart Automatic1111 completely after installing kandinsky-for-automatic1111' + Style.RESET_ALL)
+    errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
 
 import os
 import torch
