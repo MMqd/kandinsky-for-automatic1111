@@ -62,12 +62,8 @@ class KandinskyCheckpointInfo(CheckpointInfo):
         #self.register()
         return self.shorthash
 
-#def truncate_fullpath(full_path, encoding='utf-8'):
-#    dir_name, full_name = os.path.split(full_path)
-#    file_name, file_ext = os.path.splitext(full_name)
-#    max_length = os.statvfs(dir_name).f_namemax
-#    file_name_truncated = file_name.encode(encoding)[:max_length - len(file_ext)].decode(encoding, 'ignore')
-#    return os.path.join(dir_name , file_name_truncated + file_ext)
+def truncate_string(string, max_length=images.max_filename_part_length, encoding='utf-8'):
+    return string.encode(encoding)[:max_length].decode(encoding, 'ignore')
 
 class KandinskyModel():
     cond_stage_key = "edit"
@@ -434,7 +430,7 @@ class Script(scripts.Script):
 
                 for imgid in range(len(result_images)):
                     images.save_image(result_images[imgid], p.outpath_samples, "", p.all_seeds[imgid],
-                                      (p.prompt[0] if isinstance(p.prompt, list) else p.prompt)#[:64]#:images.max_filename_part_length]
+                                      truncate_string(p.prompt[0] if isinstance(p.prompt, list) else p.prompt)
                                       , opts.samples_format, info=initial_infos[imgid], p=p)
 
                 all_result_images.extend(result_images)
@@ -468,7 +464,7 @@ class Script(scripts.Script):
                     index_of_first_image = 1
 
                 if opts.grid_save:
-                    images.save_image(grid, p.outpath_grids, "grid", p.all_seeds[0], p.all_prompts[0], opts.grid_format, info=initial_info, short_filename=not opts.grid_extended_filename, p=p, grid=True)
+                    images.save_image(grid, p.outpath_grids, "grid", p.all_seeds[0], truncate_string(p.all_prompts[0]), opts.grid_format, info=initial_info, short_filename=not opts.grid_extended_filename, p=p, grid=True)
 
 
             p.n_iter = 1
