@@ -1,4 +1,4 @@
-import pip
+import launch
 import os
 from packaging import version
 import pkg_resources
