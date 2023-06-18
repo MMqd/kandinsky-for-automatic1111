@@ -23,7 +23,7 @@ Inference Steps: 128<br>
 <br>
 
 <p align="center">
-   <img src="https://github.com/MMqd/kandinsky-for-automatic1111/blob/main/images/As%20the%20sun%20sets,%20les%20arbres%20whisper,%20mientras%20el%20río%20serpentea%20gracefully,%20отражая%20прекрасные%20colors,%20majestic%20mountains%20stand%20t.jpg?raw=true" width="25%" alt="center image" />
+   <img src="https://github.com/MMqd/kandinsky-for-automatic1111/blob/main/images/As%20the%20sun%20sets.jpg?raw=true" width="25%" alt="center image" />
 </p>
 <strong>Prompt: As the sun sets, les arbres whisper, mientras el río serpentea gracefully, отражая прекрасные colors, majestic mountains stand tall, evoking tranquillité et harmonie, 空中舞动着美丽的蝴蝶, 空と地球の神秘なつながり, रंगबिरंगी वस्तुएं।</strong> (from chatgpt)<br>
 In English: As the sun sets, the trees whisper, while the river gracefully meanders, reflecting beautiful colors, majestic mountains stand tall, evoking tranquility and harmony, butterflies dance in the air, the mysterious connection between sky and earth, colorful objects.<br>
