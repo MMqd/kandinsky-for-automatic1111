@@ -37,11 +37,11 @@ try:
     print(f'Current {package_name} version: {current_version}')
 
     if current_version < target_version:
-        launch.run_pip(f"install {package_name}>={target_version}")
+        launch.run_pip(f"install {package_name}>={target_version}", "{package_name}>={target_version}")
         print(f'{package_name} upgraded to version {target_version}.')
     else:
         print(f'{package_name} is already up to date.')
 
 except pkg_resources.DistributionNotFound:
-    launch.run_pip(f"install {package_name}>={target_version}")
+    launch.run_pip(f"install {package_name}>={target_version}", "{package_name}>={target_version}")
     print(f'{package_name} installed with version {target_version}.')
