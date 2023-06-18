@@ -1,6 +1,7 @@
 import os
 from packaging import version
 import pkg_resources
+from modules import errors
 from modules.paths_internal import script_path
 import subprocess, pip
 
@@ -47,9 +48,7 @@ try:
     if current_version < target_version:
         subprocess.run(['pip', 'install', f'{package_name}>={target_version}'])
         print(f'{package_name} upgraded to version {target_version}.')
-        from colorama import Fore, Style, init
-        init()
-        print(Fore.RED + Style.BRIGHT + 'RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111' + Style.RESET_ALL)
+        errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
     else:
         print(f'{package_name} is already up to date.')
 
