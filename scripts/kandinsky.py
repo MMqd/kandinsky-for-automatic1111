@@ -1,18 +1,79 @@
-import torch, os
-from diffusers import DiffusionPipeline, KandinskyPipeline, KandinskyImg2ImgPipeline, KandinskyPriorPipeline, KandinskyInpaintPipeline, DPMSolverMultistepScheduler
+from modules import errors
+try:
+    from diffusers import KandinskyPipeline, KandinskyImg2ImgPipeline, KandinskyPriorPipeline, KandinskyInpaintPipeline, DiffusionPipeline#, DPMSolverMultistepScheduler
+except ImportError as e:
+    errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
+
+import os
+import torch
 import gradio as gr
 import numpy as np
 from PIL import Image, ImageOps, ImageFilter
 from modules import processing, shared, script_callbacks, images, devices, scripts, masking, sd_models, generation_parameters_copypaste, sd_vae#, sd_samplers
 from modules.processing import Processed, StableDiffusionProcessing
 from modules.shared import opts, state
+from modules.sd_models import CheckpointInfo
 import gc
 from packaging import version
+from modules.paths_internal import script_path
+import pkg_resources
+import importlib
 #import pkg_resources
 #import pdb
 
+class KandinskyCheckpointInfo(CheckpointInfo):
+    def __init__(self, filename="kandinsky21"):
+        self.filename = filename
+        abspath = os.path.join(os.path.join(script_path, 'models'), "Kandinsky")
+        #if shared.opts.ckpt_dir is not None and abspath.startswith(shared.opts.ckpt_dir):
+        #    name = abspath.replace(shared.opts.ckpt_dir, '')
+        #elif abspath.startswith(model_path):
+        #    name = abspath.replace(model_path, '')
+        #else:
+        #    name = os.path.basename(filename)
+        #if name.startswith("\\") or name.startswith("/"):
+        #    name = name[1:]
+        name = "kandinsky21"
+        self.name = name
+        self.name_for_extra = "kandinsky21_extra"#os.path.splitext(os.path.basename(filename))[0]
+        self.model_name = "kandinsky21"#os.path.splitext(name.replace("/", "_").replace("\\", "_"))[0]
+        self.hash = "0000000000000000000000000000000000000000000000000000000000000000"#model_hash(filename)
+        self.sha256 = "0000000000000000000000000000000000000000000000000000000000000000"#hashes.sha256_from_cache(self.filename, "checkpoint/" + name)
+        self.shorthash = self.sha256[0:10] if self.sha256 else None
+        self.title = name if self.shorthash is None else f'{name} [{self.shorthash}]'
+        self.ids = [self.hash, self.model_name, self.title, name, f'{name} [{self.hash}]'] + ([self.shorthash, self.sha256, f'{self.name} [{self.shorthash}]'] if self.shorthash else [])
+        self.metadata = {}
+        #_, ext = #os.path.splitext(self.filename)
+        #if ext.lower() == ".safetensors":
+        #    try:
+        #        self.metadata = read_metadata_from_safetensors(filename)
+        #    except Exception as e:
+        #        errors.display(e, f"reading checkpoint metadata: {filename}")
+
+    def register(self):
+        return
+    #checkpoints_list[self.title] = self
+    #    for i in self.ids:
+    #        checkpoint_aliases[i] = self
+
+    def calculate_shorthash(self):
+        self.sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+        #if self.sha256 is None:
+        #    return
+        self.shorthash = self.sha256[0:10]
+        if self.shorthash not in self.ids:
+            self.ids += [self.shorthash, self.sha256, f'{self.name} [{self.shorthash}]']
+        #checkpoints_list.pop(self.title)
+        self.title = f'{self.name} [{self.shorthash}]'
+        #self.register()
+        return self.shorthash
+
+def truncate_string(string, max_length=images.max_filename_part_length, encoding='utf-8'):
+    return string.encode(encoding)[:max_length].decode(encoding, 'ignore')
+
 class KandinskyModel():
     cond_stage_key = "edit"
+    sd_checkpoint_info = KandinskyCheckpointInfo()
 
 def unload_model():
     #print(type(shared.sd_vae))
@@ -60,7 +121,7 @@ def unload_kandinsky_model():
 
 class Script(scripts.Script):
     attention_type = 'auto'#'max'
-    cache_dir="models/Kandinsky"
+    cache_dir = os.path.join(os.path.join(script_path, 'models'), "Kandinsky")
     #img2_name = ""
 
     def title(self):
@@ -114,7 +175,7 @@ class Script(scripts.Script):
         #pdb.set_trace()
 
         if not isinstance(pipe, KandinskyPipeline) or pipe == None:
-            pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=cache_dir)#, scheduler=dpm)
+            pipe = DiffusionPipeline.from_pretrained("kandinsky-community/kandinsky-2-1", variant="fp16", torch_dtype=torch.float16, cache_dir=self.cache_dir)#, scheduler=dpm)
             pipe.to("cuda")
             #pipe.enable_sequential_cpu_offload()
             pipe.enable_attention_slicing(self.attention_type)
@@ -181,7 +242,7 @@ class Script(scripts.Script):
                 pipe_prior.to("cuda")
 
             seed = int(p.seed)
-            all_seeds = [seed + j for j in range(p.n_iter * p.batch_size)]
+            p.all_seeds = [seed + j for j in range(p.n_iter * p.batch_size)]
 
             if p.batch_size * p.n_iter > 1:
                 generators = []
@@ -234,8 +295,8 @@ class Script(scripts.Script):
                 for batchid in range(p.batch_size):
                     initial_infos.append(self.create_infotext(p,
                                                                 p.all_prompts, 
-                                                                all_seeds, 
-                                                                all_seeds, 
+                                                                p.all_seeds, 
+                                                                p.all_seeds, 
                                                                 iteration=b,
                                                                 position_in_batch=batchid))
 
@@ -363,19 +424,20 @@ class Script(scripts.Script):
                         #        base_image = base_image.convert('RGBA')
                         #        mask = ImageOps.invert(mask)
                         #        mask = mask.convert('L')
+                        #        base_image.putalpha(mask)
 
-                        #        image = init_image
+                        #        image = images.resize_image(1, init_image, p.width, p.height)
                         #        image = image.convert('RGBA')
                         #        image.alpha_composite(base_image)
                         #        image.convert('RGB')
+                        #        processing.apply_color_correction(processing.setup_color_correction(init_image), image)
                         #        result_images[i] = image
 
 
                 for imgid in range(len(result_images)):
-                    if type(p.prompt) != list:
-                        images.save_image(result_images[imgid], p.outpath_samples, "", all_seeds[imgid], p.prompt, opts.samples_format, info=initial_infos[imgid], p=p)
-                    else:
-                        images.save_image(result_images[imgid], p.outpath_samples, "", all_seeds[imgid], p.prompt[0], opts.samples_format, info=initial_info[imgid], p=p)
+                    images.save_image(result_images[imgid], p.outpath_samples, "", p.all_seeds[imgid],
+                                      truncate_string(p.prompt[0] if isinstance(p.prompt, list) else p.prompt)
+                                      , opts.samples_format, info=initial_infos[imgid], p=p)
 
                 all_result_images.extend(result_images)
 
@@ -390,7 +452,26 @@ class Script(scripts.Script):
             gc.collect()
             devices.torch_gc()
             torch.cuda.empty_cache()
-            initial_info = self.create_infotext(p, p.all_prompts, all_seeds, all_seeds, iteration=0, position_in_batch=0)
+            initial_info = self.create_infotext(p, p.all_prompts, p.all_seeds, p.all_seeds, iteration=0, position_in_batch=0)
+
+            output_images = all_result_images
+
+            # Save Grid
+            index_of_first_image = 0
+            unwanted_grid_because_of_img_count = len(output_images) < 2 and opts.grid_only_if_multiple
+            if (opts.return_grid or opts.grid_save) and not p.do_not_save_grid and not unwanted_grid_because_of_img_count:
+                grid = images.image_grid(output_images, p.batch_size)
+
+                if opts.return_grid:
+                    text = initial_info
+                    if opts.enable_pnginfo:
+                        grid.info["parameters"] = text
+                    output_images.insert(0, grid)
+                    index_of_first_image = 1
+
+                if opts.grid_save:
+                    images.save_image(grid, p.outpath_grids, "grid", p.all_seeds[0], truncate_string(p.all_prompts[0]), opts.grid_format, info=initial_info, short_filename=not opts.grid_extended_filename, p=p, grid=True)
+
 
             p.n_iter = 1
             state.end()
@@ -401,7 +482,7 @@ class Script(scripts.Script):
             #sd_vae.reload_vae_weights()
             #pdb.post_mortem()
 
-            return KProcessed(p, all_result_images, p.seed, initial_info, all_seeds=all_seeds)
+            return KProcessed(p, all_result_images, p.seed, initial_info, all_seeds=p.all_seeds)
 
         except RuntimeError as e:
             if getattr(shared, 'pipe_prior', None) != None:

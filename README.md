@@ -7,6 +7,18 @@ ALPHA VERSION NOT PRODUCTION-READY
 
 <strong>!!Note!!</strong> Progress bar not supported yet.
 
+## Troubleshooting
+* Ignore the warning `Pipelines loaded with torch_dtype=torch.float16 cannot run with cpu device...` the Kandinsky model or prior is being moved to RAM to save VRAM.
+
+* `NameError: name 'DiffusionPipeline' is not defined` or any name error
+    * Usually happens after installation.
+    * <strong>Solution:</strong> Close Automatic1111 completely to finish installing, and open it again. The browser window may need to be refreshed.
+
+* `AttributeError: 'KandinskyModel' object has no attribute 'ema_scope'`
+    * The real error is probably `CUDA out of memory` above the `AttributeError`.
+    * <strong>Solution:</strong> In the script section, try reloading the stable diffusion model, and unloading it.
+
+
 ## Examples
 The following are non cherry-picked examples, with various settings and resolutions.
 
@@ -23,7 +35,7 @@ Inference Steps: 128<br>
 <br>
 
 <p align="center">
-   <img src="https://github.com/MMqd/kandinsky-for-automatic1111/blob/main/images/As%20the%20sun%20sets,%20les%20arbres%20whisper,%20mientras%20el%20río%20serpentea%20gracefully,%20отражая%20прекрасные%20colors,%20majestic%20mountains%20stand%20t.jpg?raw=true" width="25%" alt="center image" />
+   <img src="https://github.com/MMqd/kandinsky-for-automatic1111/blob/main/images/As%20the%20sun%20sets.jpg?raw=true" width="25%" alt="center image" />
 </p>
 <strong>Prompt: As the sun sets, les arbres whisper, mientras el río serpentea gracefully, отражая прекрасные colors, majestic mountains stand tall, evoking tranquillité et harmonie, 空中舞动着美丽的蝴蝶, 空と地球の神秘なつながり, रंगबिरंगी वस्तुएं।</strong> (from chatgpt)<br>
 In English: As the sun sets, the trees whisper, while the river gracefully meanders, reflecting beautiful colors, majestic mountains stand tall, evoking tranquility and harmony, butterflies dance in the air, the mysterious connection between sky and earth, colorful objects.<br>
@@ -118,7 +130,6 @@ Result:
 * It is very easy to "overcook" images with prompts, if this happens remove keywords or reduce CFG scale
     * Negative prompts aren't needed, so "low quality, bad quality..." can be ommited
     * Short positive prompts are good, too many keywords confuse the ai
-* Ignore the warning "Pipelines loaded with torch_dtype=torch.float16 cannot run with cpu device..." the model is being moved to save vram
 
 ## Features
 * Text to image
