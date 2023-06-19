@@ -4,14 +4,6 @@ try:
 except ImportError as e:
     errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
 
-try:
-    isinstance(DiffusionPipeline, DiffusionPipeline)
-    isinstance(KandinskyPipeline, DiffusionPipeline)
-    isinstance(KandinskyImg2ImgPipeline, DiffusionPipeline)
-    isinstance(KandinskyPriorPipeline, DiffusionPipeline)
-except NameError as e:
-    errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
-
 import os
 import torch
 import gradio as gr
