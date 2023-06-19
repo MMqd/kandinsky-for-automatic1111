@@ -12,7 +12,7 @@ ALPHA VERSION NOT PRODUCTION-READY
 
 * `NameError: name 'DiffusionPipeline' is not defined` or any name error
     * Usually happens after installation.
-    * <strong>Solution:</strong> Close Automatic1111 completely to finish installing, and open it again.
+    * <strong>Solution:</strong> Close Automatic1111 completely to finish installing, and open it again. The browser window may need to be refreshed.
 
 * `AttributeError: 'KandinskyModel' object has no attribute 'ema_scope'`
     * The real error is probably `CUDA out of memory` above the `AttributeError`.
