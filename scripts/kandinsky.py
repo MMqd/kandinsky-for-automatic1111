@@ -5,20 +5,16 @@ except ImportError as e:
     errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
 
 import os
+import gc
 import torch
-import gradio as gr
 import numpy as np
 from PIL import Image, ImageOps, ImageFilter
+from packaging import version
 from modules import processing, shared, script_callbacks, images, devices, scripts, masking, sd_models, generation_parameters_copypaste, sd_vae#, sd_samplers
 from modules.processing import Processed, StableDiffusionProcessing
 from modules.shared import opts, state
 from modules.sd_models import CheckpointInfo
-import gc
-from packaging import version
 from modules.paths_internal import script_path
-import pkg_resources
-import importlib
-#import pkg_resources
 #import pdb
 
 class KProcessed(processing.Processed):
@@ -72,7 +68,6 @@ class KProcessed(processing.Processed):
 class KandinskyCheckpointInfo(CheckpointInfo):
     def __init__(self, filename="kandinsky21"):
         self.filename = filename
-        abspath = os.path.join(os.path.join(script_path, 'models'), "Kandinsky")
         name = "kandinsky21"
         self.name = name
         self.name_for_extra = "kandinsky21_extra"#os.path.splitext(os.path.basename(filename))[0]
@@ -148,7 +143,7 @@ class KandinskyModel():
             pipe = getattr(shared, pipe_name, None)
 
         if not isinstance(pipe, pipeline) or pipe is None:
-            if pipe != None:
+            if pipe is not None:
                 pipe = None
                 gc.collect()
                 devices.torch_gc()
@@ -201,6 +196,14 @@ class KandinskyModel():
             torch.cuda.empty_cache()
             torch.backends.cudnn.benchmark = False
 
+            all_result_images = []
+            initial_infos = []
+            p.all_negative_prompts = [p.negative_prompt] * p.n_iter * p.batch_size
+            p.all_prompts = [p.prompt] * p.n_iter * p.batch_size
+            seed = int(p.seed)
+            p.all_seeds = [seed + j for j in range(p.n_iter * p.batch_size)]
+            initial_info = self.create_infotext(p, p.all_prompts, p.all_seeds, p.all_seeds, iteration=0, position_in_batch=0)
+
             p.sd_model_hash = self.sd_checkpoint_info.sd_model_hash
 
             if version.parse(torch.version.cuda) < version.parse("10.2"):
@@ -210,7 +213,7 @@ class KandinskyModel():
 
             torch.manual_seed(0)
 
-            if p.init_image != None:
+            if p.init_image is not None:
                 p.init_image = p.init_image[0]
                 p.init_image = images.flatten(p.init_image, opts.img2img_background_color)
 
@@ -218,8 +221,12 @@ class KandinskyModel():
             print("Starting Prior")
             pipe_prior = KandinskyModel.load_pipeline(None, "pipe_prior", KandinskyPriorPipeline, "kandinsky-community/kandinsky-2-1-prior")
 
-            seed = int(p.seed)
-            p.all_seeds = [seed + j for j in range(p.n_iter * p.batch_size)]
+            if state.interrupted:
+                pipe_prior.to("cpu")
+                gc.collect()
+                devices.torch_gc()
+                torch.cuda.empty_cache()
+                return KProcessed(p, [], p.seed, initial_info, all_seeds=p.all_seeds)
 
             if p.batch_size * p.n_iter > 1:
                 generators = []
@@ -257,28 +264,21 @@ class KandinskyModel():
                                     "width": p.width,
                                     "guidance_scale": p.cfg_scale,
                                     "num_inference_steps": p.steps}
-            
-            all_result_images = []
+
 
             pipe = None
 
             state.job_no = p.n_iter * p.batch_size
 
-            initial_infos = []
-            p.all_negative_prompts = [p.negative_prompt] * p.n_iter * p.batch_size
-            p.all_prompts = [p.prompt] * p.n_iter * p.batch_size
-
             for b in range(p.n_iter):
+                if state.interrupted:
+                    break
+
                 for batchid in range(p.batch_size):
-                    initial_infos.append(self.create_infotext(p,
-                                                                p.all_prompts, 
-                                                                p.all_seeds, 
-                                                                p.all_seeds, 
-                                                                iteration=b,
-                                                                position_in_batch=batchid))
+                    initial_infos.append(self.create_infotext(p, p.all_prompts, p.all_seeds, p.all_seeds, iteration=b, position_in_batch=batchid))
 
                 state.job = "Generating"
-                if p.init_image == None:
+                if p.init_image is None:
                     pipe = KandinskyModel.load_pipeline(None, "pipe", KandinskyPipeline, "kandinsky-community/kandinsky-2-1")
 
                     result_images = pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
@@ -289,7 +289,7 @@ class KandinskyModel():
                                                                torch.Generator().manual_seed(seed + i + b * p.batch_size))
 
                 else:
-                    if p.image_mask == None:
+                    if p.image_mask is None:
                         pipe = KandinskyModel.load_pipeline(None, "pipe", KandinskyImg2ImgPipeline, "kandinsky-community/kandinsky-2-1")
 
                         if p.denoising_strength != 0:
@@ -376,10 +376,10 @@ class KandinskyModel():
                         #        result_images[i] = image
 
 
-                for imgid in range(len(result_images)):
-                    images.save_image(result_images[imgid], p.outpath_samples, "", p.all_seeds[imgid],
-                                      truncate_string(p.prompt[0] if isinstance(p.prompt, list) else p.prompt)
-                                      , opts.samples_format, info=initial_infos[imgid], p=p)
+                for imgid, result_image in enumerate(result_images):
+                    images.save_image(result_image, p.outpath_samples, "", p.all_seeds[imgid],
+                                      truncate_string(p.prompt[0] if isinstance(p.prompt, list) else p.prompt),
+                                      opts.samples_format, info=initial_infos[imgid], p=p)
 
                 all_result_images.extend(result_images)
 
@@ -394,12 +394,10 @@ class KandinskyModel():
             gc.collect()
             devices.torch_gc()
             torch.cuda.empty_cache()
-            initial_info = self.create_infotext(p, p.all_prompts, p.all_seeds, p.all_seeds, iteration=0, position_in_batch=0)
 
             output_images = all_result_images
 
             # Save Grid
-            index_of_first_image = 0
             unwanted_grid_because_of_img_count = len(output_images) < 2 and opts.grid_only_if_multiple
             if (opts.return_grid or opts.grid_save) and not p.do_not_save_grid and not unwanted_grid_because_of_img_count:
                 grid = images.image_grid(output_images, p.batch_size)
@@ -409,7 +407,6 @@ class KandinskyModel():
                     if opts.enable_pnginfo:
                         grid.info["parameters"] = text
                     output_images.insert(0, grid)
-                    index_of_first_image = 1
 
                 if opts.grid_save:
                     images.save_image(grid, p.outpath_grids, "grid", p.all_seeds[0], truncate_string(p.all_prompts[0]), opts.grid_format, info=initial_info, short_filename=not opts.grid_extended_filename, p=p, grid=True)
@@ -420,11 +417,11 @@ class KandinskyModel():
 
             return KProcessed(p, all_result_images, p.seed, initial_info, all_seeds=p.all_seeds)
 
-        except RuntimeError as e:
-            if getattr(shared, 'pipe_prior', None) != None:
+        except RuntimeError as re:
+            if getattr(shared, 'pipe_prior', None) is not None:
                 shared.pipe_prior.to("cpu")
 
-            if getattr(shared, 'pipe', None) != None:
+            if getattr(shared, 'pipe', None) is not None:
                 shared.pipe_prior.to("cpu")
 
             gc.collect()
@@ -433,43 +430,3 @@ class KandinskyModel():
             if str(e).startswith('CUDA out of memory.'):
                 print("OutOfMemoryError: CUDA out of memory.")
             return
-
-def unload_model():
-    if shared.sd_model is None:
-        shared.sd_model = KandinskyModel()
-        print("Unloaded Stable Diffusion model")
-        return
-
-    if not isinstance(shared.sd_model, KandinskyModel):
-        sd_models.unload_model_weights()
-        sd_vae.clear_loaded_vae()
-        devices.torch_gc()
-        gc.collect()
-        torch.cuda.empty_cache()
-        shared.sd_model = KandinskyModel()
-
-def reload_model():
-    if shared.sd_model is None or isinstance(shared.sd_model, KandinskyModel):
-        shared.sd_model = None
-        sd_models.reload_model_weights()
-        devices.torch_gc()
-        gc.collect()
-        torch.cuda.empty_cache()
-
-def unload_kandinsky_model():
-    pipe_prior = getattr(shared, 'pipe_prior', None)
-
-    if pipe_prior != None:
-        del shared.pipe_prior
-        devices.torch_gc()
-        gc.collect()
-        torch.cuda.empty_cache()
-
-    pipe = getattr(shared, 'pipe', None)
-
-    if pipe != None:
-        del shared.pipe
-        devices.torch_gc()
-        gc.collect()
-        torch.cuda.empty_cache()
-    print("Unloaded Kandinsky model")
