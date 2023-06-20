@@ -9,6 +9,46 @@ from modules.processing import Processed
 sys.path.append('extensions/kandinsky-for-automatic1111/scripts')
 from kandinsky import *
 
+def unload_model():
+    if shared.sd_model is None:
+        shared.sd_model = KandinskyModel()
+        print("Unloaded Stable Diffusion model")
+        return
+
+    if not isinstance(shared.sd_model, KandinskyModel):
+        sd_models.unload_model_weights()
+        sd_vae.clear_loaded_vae()
+        devices.torch_gc()
+        gc.collect()
+        torch.cuda.empty_cache()
+        shared.sd_model = KandinskyModel()
+
+def reload_model():
+    if shared.sd_model is None or isinstance(shared.sd_model, KandinskyModel):
+        shared.sd_model = None
+        sd_models.reload_model_weights()
+        devices.torch_gc()
+        gc.collect()
+        torch.cuda.empty_cache()
+
+def unload_kandinsky_model():
+    pipe_prior = getattr(shared, 'pipe_prior', None)
+
+    if pipe_prior is not None:
+        del shared.pipe_prior
+        devices.torch_gc()
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    pipe = getattr(shared, 'pipe', None)
+
+    if pipe is not None:
+        del shared.pipe
+        devices.torch_gc()
+        gc.collect()
+        torch.cuda.empty_cache()
+    print("Unloaded Kandinsky model")
+
 class Script(scripts.Script):
     def title(self):
         return "Kandinsky"
@@ -39,7 +79,7 @@ class Script(scripts.Script):
 
         return inputs
 
-    def run(self, p, extra_image, inference_steps, prior_cfg_scale, img1_strength, img2_strength, xyz_grid_enabled, x_type, x_values, x_values_dropdown, y_type, y_values, y_values_dropdown, z_type, z_values, z_values_dropdown, draw_legend, include_lone_images, include_sub_grids, no_fixed_seeds, margin_size) -> Processed:#, img2_name):#, scripts_dropdown, **kwargs) -> Processed:#, img2_name):
+    def run(self, p, extra_image, inference_steps, prior_cfg_scale, img1_strength, img2_strength) -> Processed:
         p.extra_image = extra_image
         p.inference_steps = inference_steps
         p.prior_cfg_scale = prior_cfg_scale
@@ -51,12 +91,4 @@ class Script(scripts.Script):
         p.extra_generation_params["Script"] = self.title()
         kandinsky_model = KandinskyModel()
 
-        p.model = kandinsky_model
-
-        outputs = None
-        if xyz_grid_enabled:
-            outputs = shared.xyz_grid.run(p, x_type, x_values, x_values_dropdown, y_type, y_values, y_values_dropdown, z_type, z_values, z_values_dropdown, draw_legend, include_lone_images, include_sub_grids, no_fixed_seeds, margin_size)
-        else:
-            outputs = kandinsky_model.process_images(p)
-
-        return outputs
+        return kandinsky_model.process_images(p)
