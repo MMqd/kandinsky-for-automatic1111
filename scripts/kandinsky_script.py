@@ -8,7 +8,6 @@ from modules.processing import Processed
 
 sys.path.append('extensions/kandinsky-for-automatic1111/scripts')
 from kandinsky import *
-import xyz_grid
 
 class Script(scripts.Script):
     def title(self):
@@ -37,10 +36,6 @@ class Script(scripts.Script):
             extra_image = gr.inputs.Image()
 
         inputs = [extra_image, inference_steps, prior_cfg_scale, img1_strength, img2_strength]
-        with gr.Accordion("X/Y/Z Plot", open=False):
-            inputs.append(gr.inputs.Checkbox(label="Enabled"))
-            shared.xyz_grid = xyz_grid.Script()
-            inputs.extend(shared.xyz_grid.ui(is_img2img))
 
         return inputs
 
