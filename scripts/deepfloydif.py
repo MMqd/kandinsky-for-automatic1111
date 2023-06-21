@@ -30,16 +30,21 @@ class IFModel(AbstractModel):
     def __init__(self):
         self.stageI_model = "XL"
         self.stageII_model = "L"
-        self.cache_dir = os.path.join(os.path.join(script_path, 'models'), 'IF')
+        AbstractModel.__init__(self, "IF")
 
     def load_encoder(self):
         try:
-            self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
+            if self.stageI_model == "None":
+                self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageII_model}-v1.0", {"safety_checker": None, "watermarker": None})
+            else:
+                self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
         except FileNotFoundError as fe:
             errors.print_error_explanation(f'File {fe.filename} not found. Did you forget the Hugging Face token?')
 
     def run_encoder(self, prior_settings_dict):
-        if prior_settings_dict.get("negative_prompt", None) is None:
+        if self.pipe is None:
+            errors.print_error_explanation(f'Stage I {self.stageI_model} not loaded. Did you forget the Hugging Face token?')
+        elif prior_settings_dict.get("negative_prompt", None) is None:
             tup = self.pipe.encode_prompt(prompt=prior_settings_dict["prompt"])
         else:
             tup = self.pipe.encode_prompt(prompt=prior_settings_dict["prompt"], negative_prompt=prior_settings_dict["negative_prompt"])

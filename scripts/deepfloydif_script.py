@@ -71,7 +71,7 @@ class Script(scripts.Script):
         stageI_model = None
         stageII_model = None
         with gr.Row():
-            stageI_model = gr.inputs.Dropdown(label="Stage I Model Type", choices=["M", "L", "XL"], default="XL")
+            stageI_model = gr.inputs.Dropdown(label="Stage I Model Type", choices=["None", "M", "L", "XL"], default="XL")
             stageII_model = gr.inputs.Dropdown(label="Stage II Model Type", choices=["None", "M", "L"], default="L")
 
         token_textbox = gr.inputs.Textbox(label="Hugging Face Token", type="password")
@@ -83,7 +83,7 @@ class Script(scripts.Script):
     def run(self, p, token, stageI_model, stageII_model) -> Processed:
         p.sampler_name = "DDPM"
         p.init_image = getattr(p, 'init_images', None)
-        p.extra_generation_params["Script"] = self.title()
+        p.extra_generation_params["Script"] = "if"
 
         shared.if_model = getattr(shared, 'if_model', None)
 

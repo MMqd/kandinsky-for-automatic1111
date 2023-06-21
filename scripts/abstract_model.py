@@ -108,8 +108,9 @@ class AbstractModel():
     sd_model_hash = sd_checkpoint_info.shorthash
     cached_image_embeds = {"settings": {}, "embeds": (None, None)}
 
-    def __init__(self):
-        self.cache_dir = os.path.join(os.path.join(script_path, 'models'), '')
+    def __init__(self, cache_dir=""):
+        self.stages = 1
+        self.cache_dir = os.path.join(os.path.join(script_path, 'models'), cache_dir)
 
     def load_pipeline(self, pipe_name: str, pipeline: DiffusionPipeline, pretrained_model_name_or_path, move_to_cuda = True, kwargs={}):
         pipe = getattr(self, pipe_name, None)
@@ -212,7 +213,7 @@ class AbstractModel():
             else:
                 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-            torch.manual_seed(0)
+            torch.manual_seed(p.seed)
 
             if p.init_image is not None:
                 p.init_image = p.init_image[0]
@@ -264,102 +265,103 @@ class AbstractModel():
 
             state.job_no = p.n_iter * p.batch_size
 
-            for b in range(p.n_iter):
-                if state.interrupted:
-                    break
+            for stage in range(self.stages):
+                for b in range(p.n_iter):
+                    if state.interrupted:
+                        break
 
-                for batchid in range(p.batch_size):
-                    initial_infos.append(self.create_infotext(p, p.all_prompts, p.all_seeds, p.all_seeds, iteration=b, position_in_batch=batchid))
+                    for batchid in range(p.batch_size):
+                        initial_infos.append(self.create_infotext(p, p.all_prompts, p.all_seeds, p.all_seeds, iteration=b, position_in_batch=batchid))
 
-                state.job = "Generating"
-                if p.init_image is None:
-                    result_images = self.txt2img(p, generation_parameters, b)
-
-                else:
-                    if p.image_mask is None:
-                        if p.denoising_strength != 0:
-                            result_images = self.img2img(p, generation_parameters, b)
-                        else:
-                            result_images = [p.init_image] * p.batch_size
+                    state.job = "Generating"
+                    if p.init_image is None:
+                        result_images = self.txt2img(p, generation_parameters, b)
 
                     else:
-                        crop_region = None
-                        if not p.inpainting_mask_invert:
-                            p.image_mask = ImageOps.invert(p.image_mask)
+                        if p.image_mask is None:
+                            if p.denoising_strength != 0:
+                                result_images = self.img2img(p, generation_parameters, b)
+                            else:
+                                result_images = [p.init_image] * p.batch_size
 
-                        if p.mask_blur > 0:
-                            p.image_mask = p.image_mask.filter(ImageFilter.GaussianBlur(p.mask_blur))
-
-                        mask = p.image_mask
-                        mask = mask.convert('L')
-                        new_init_image = p.init_image
-
-                        if p.inpaint_full_res:
-                            mask = ImageOps.invert(mask)
-                            crop_region = masking.get_crop_region(np.array(mask), p.inpaint_full_res_padding)
-                            crop_region = masking.expand_crop_region(crop_region, p.width, p.height, mask.width, mask.height)
-                            x1, y1, x2, y2 = crop_region
-                            mask = mask.crop(crop_region)
-                            mask = images.resize_image(2, mask, p.width, p.height)
-                            p.paste_to = (x1, y1, x2-x1, y2-y1)
-
-                            new_init_image = new_init_image.crop(crop_region)
-                            new_init_image = images.resize_image(2, new_init_image, p.width, p.height)
-                            mask = ImageOps.invert(mask)
                         else:
-                            p.image_mask = images.resize_image(p.resize_mode, p.image_mask, p.width, p.height)
-                            np_mask = np.array(p.image_mask)
-                            np_mask = np.clip((np_mask.astype(np.float32)) * 2, 0, 255).astype(np.uint8)
-                            mask = Image.fromarray(np_mask)
+                            crop_region = None
+                            if not p.inpainting_mask_invert:
+                                p.image_mask = ImageOps.invert(p.image_mask)
 
-                        p.new_init_image = new_init_image
-                        p.new_mask = mask
-                        result_images = self.inpaint(p, generation_parameters, b)
+                            if p.mask_blur > 0:
+                                p.image_mask = p.image_mask.filter(ImageFilter.GaussianBlur(p.mask_blur))
 
-                        if p.inpaint_full_res:
-                            for i in range(len(result_images)):
-                                paste_loc = p.paste_to
-                                x, y, w, h = paste_loc
-                                base_image = Image.new('RGBA', (p.init_image.width, p.init_image.height))
+                            mask = p.image_mask
+                            mask = mask.convert('L')
+                            new_init_image = p.init_image
+
+                            if p.inpaint_full_res:
                                 mask = ImageOps.invert(mask)
-                                result_images[i] = images.resize_image(1, result_images[i], w, h)
-                                mask = images.resize_image(1, mask, w, h)
-                                mask = mask.convert('L')
+                                crop_region = masking.get_crop_region(np.array(mask), p.inpaint_full_res_padding)
+                                crop_region = masking.expand_crop_region(crop_region, p.width, p.height, mask.width, mask.height)
+                                x1, y1, x2, y2 = crop_region
+                                mask = mask.crop(crop_region)
+                                mask = images.resize_image(2, mask, p.width, p.height)
+                                p.paste_to = (x1, y1, x2-x1, y2-y1)
 
-                                base_image.paste(result_images[i], (x, y), mask=mask)
-                                image = p.init_image
-                                image = image.convert('RGBA')
-                                image.alpha_composite(base_image)
-                                image.convert('RGB')
-                                processing.apply_color_correction(processing.setup_color_correction(p.init_image), image)
-                                result_images[i] = image
-                        #else:
-                        #    for i in range(len(result_images)):
-                        #        base_image = result_images[i]
-                        #        base_image = base_image.convert('RGBA')
-                        #        mask = ImageOps.invert(mask)
-                        #        mask = mask.convert('L')
-                        #        base_image.putalpha(mask)
+                                new_init_image = new_init_image.crop(crop_region)
+                                new_init_image = images.resize_image(2, new_init_image, p.width, p.height)
+                                mask = ImageOps.invert(mask)
+                            else:
+                                p.image_mask = images.resize_image(p.resize_mode, p.image_mask, p.width, p.height)
+                                np_mask = np.array(p.image_mask)
+                                np_mask = np.clip((np_mask.astype(np.float32)) * 2, 0, 255).astype(np.uint8)
+                                mask = Image.fromarray(np_mask)
 
-                        #        image = images.resize_image(1, init_image, p.width, p.height)
-                        #        image = image.convert('RGBA')
-                        #        image.alpha_composite(base_image)
-                        #        image.convert('RGB')
-                        #        processing.apply_color_correction(processing.setup_color_correction(init_image), image)
-                        #        result_images[i] = image
+                            p.new_init_image = new_init_image
+                            p.new_mask = mask
+                            result_images = self.inpaint(p, generation_parameters, b)
 
-                for imgid, result_image in enumerate(result_images):
-                    images.save_image(result_image, p.outpath_samples, "", p.all_seeds[imgid],
-                                      truncate_string(p.prompt[0] if isinstance(p.prompt, list) else p.prompt),
-                                      opts.samples_format, info=initial_infos[imgid], p=p)
+                            if p.inpaint_full_res:
+                                for i in range(len(result_images)):
+                                    paste_loc = p.paste_to
+                                    x, y, w, h = paste_loc
+                                    base_image = Image.new('RGBA', (p.init_image.width, p.init_image.height))
+                                    mask = ImageOps.invert(mask)
+                                    result_images[i] = images.resize_image(1, result_images[i], w, h)
+                                    mask = images.resize_image(1, mask, w, h)
+                                    mask = mask.convert('L')
 
-                all_result_images.extend(result_images)
+                                    base_image.paste(result_images[i], (x, y), mask=mask)
+                                    image = p.init_image
+                                    image = image.convert('RGBA')
+                                    image.alpha_composite(base_image)
+                                    image.convert('RGB')
+                                    processing.apply_color_correction(processing.setup_color_correction(p.init_image), image)
+                                    result_images[i] = image
+                            #else:
+                            #    for i in range(len(result_images)):
+                            #        base_image = result_images[i]
+                            #        base_image = base_image.convert('RGBA')
+                            #        mask = ImageOps.invert(mask)
+                            #        mask = mask.convert('L')
+                            #        base_image.putalpha(mask)
 
-                state.job_no = b * p.batch_size
-                state.current_image = result_images[0]
-                state.nextjob()
+                            #        image = images.resize_image(1, init_image, p.width, p.height)
+                            #        image = image.convert('RGBA')
+                            #        image.alpha_composite(base_image)
+                            #        image.convert('RGB')
+                            #        processing.apply_color_correction(processing.setup_color_correction(init_image), image)
+                            #        result_images[i] = image
 
-            self.main_model_to_cpu()
+                    for imgid, result_image in enumerate(result_images):
+                        images.save_image(result_image, p.outpath_samples, "", p.all_seeds[imgid],
+                                          truncate_string(p.prompt[0] if isinstance(p.prompt, list) else p.prompt),
+                                          opts.samples_format, info=initial_infos[imgid], p=p)
+
+                    all_result_images.extend(result_images)
+
+                    state.job_no = b * p.batch_size
+                    state.current_image = result_images[0]
+                    state.nextjob()
+
+                self.main_model_to_cpu()
 
             #del pipe
             del generators
