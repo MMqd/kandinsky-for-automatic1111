@@ -217,6 +217,7 @@ class AbstractModel():
 
             if p.init_image is not None:
                 p.init_image = p.init_image[0]
+                print(f"{p.init_image.width}, {p.init_image.height}")
                 p.init_image = images.flatten(p.init_image, opts.img2img_background_color)
 
             state.job = "Prior"
