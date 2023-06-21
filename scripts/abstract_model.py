@@ -228,8 +228,9 @@ class AbstractModel():
                 generators = torch.Generator().manual_seed(p.seed)
 
 
-            prior_settings_dict = {"generator": generators, "prompt": p.prompt, "guidance_scale": p.prior_cfg_scale}
-            prior_settings_dict["num_inference_steps"] = p.prior_inference_steps
+            prior_settings_dict = {"generator": generators, "prompt": p.prompt}
+            prior_settings_dict["prior_cfg_scale"] = getattr(p, "prior_cfg_scale", 4)
+            prior_settings_dict["num_inference_steps"] = getattr(p, "prior_inference_steps", 20)
 
             if p.negative_prompt != "":
                 prior_settings_dict["negative_prompt"] = p.negative_prompt
