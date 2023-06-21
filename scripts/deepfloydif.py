@@ -41,7 +41,7 @@ class IFModel(AbstractModel):
             tup = self.pipe.encode_prompt(prompt=prior_settings_dict["prompt"])
         else:
             tup = self.pipe.encode_prompt(prompt=prior_settings_dict["prompt"], negative_prompt=prior_settings_dict["negative_prompt"])
-        return tup.to_tuple()
+        return tup
 
     def encoder_to_cpu(self):
         pass
@@ -53,6 +53,12 @@ class IFModel(AbstractModel):
         pass
 
     def txt2img(self, p, generation_parameters, b):
+        generation_parameters["prompt_embeds"] = generation_parameters["image_embeds"]
+        generation_parameters.pop("image_embeds", None)
+        generation_parameters["negative_prompt_embeds"] = generation_parameters["negative_image_embeds"]
+        generation_parameters.pop("negative_image_embeds", None)
+        generation_parameters.pop("prompt", None)
+        generation_parameters.pop("negative_prompt", None)
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         return result_images
 
