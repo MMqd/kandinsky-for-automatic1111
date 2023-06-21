@@ -56,26 +56,31 @@ class Script(scripts.Script):
 
     def ui(self, is_img2img):
         gr.Markdown("To save VRAM unload the Stable Diffusion Model")
+        unload_sd_model = None
+        reload_sd_model = None
+        unload_k_model = None
 
-        unload_sd_model = gr.Button("Unload Stable Diffusion Model")
-        unload_sd_model.click(unload_model)
-        reload_sd_model = gr.Button("Reload Stable Diffusion Model")
-        reload_sd_model.click(reload_model)
-
-        unload_k_model = gr.Button("Unload IF Model")
-        unload_k_model.click(unload_if_model)
         with gr.Row():
-            unload_sd_model
-            reload_sd_model
-            unload_k_model
+            unload_sd_model = gr.Button("Unload Stable Diffusion Model")
+            unload_sd_model.click(unload_model)
+            reload_sd_model = gr.Button("Reload Stable Diffusion Model")
+            reload_sd_model.click(reload_model)
+            unload_k_model = gr.Button("Unload IF Model")
+            unload_k_model.click(unload_if_model)
+
+        stageI_model = None
+        stageII_model = None
+        with gr.Row():
+            stageI_model = gr.inputs.Dropdown(label="Stage I Model Type", choices=["M", "L", "XL"], default="XL")
+            stageII_model = gr.inputs.Dropdown(label="Stage II Model Type", choices=["None", "M", "L"], default="L")
 
         token_textbox = gr.inputs.Textbox(label="Hugging Face Token", type="password")
 
-        inputs = [token_textbox]
+        inputs = [token_textbox, stageI_model, stageII_model]
 
         return inputs
 
-    def run(self, p, token) -> Processed:
+    def run(self, p, token, stageI_model, stageII_model) -> Processed:
         p.sampler_name = "DDPM"
         p.init_image = getattr(p, 'init_images', None)
         p.extra_generation_params["Script"] = self.title()
@@ -84,6 +89,8 @@ class Script(scripts.Script):
 
         if shared.if_model is None:
             shared.if_model = IFModel()
+            shared.if_model.stageI_model = stageI_model
+            shared.if_model.stageII_model = stageII_model
             if token != "":
                 login(token=token)
 
