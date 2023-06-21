@@ -28,11 +28,13 @@ class IFModel(AbstractModel):
     pipe = None
 
     def __init__(self):
+        self.stageI_model = "XL"
+        self.stageII_model = "L"
         self.cache_dir = os.path.join(os.path.join(script_path, 'models'), 'IF')
 
     def load_encoder(self):
         try:
-            self.pipe = self.load_pipeline("pipe", IFPipeline, "DeepFloyd/IF-I-XL-v1.0")
+            self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
         except FileNotFoundError as fe:
             errors.print_error_explanation(f'File {fe.filename} not found. Did you forget the Hugging Face token?')
 
