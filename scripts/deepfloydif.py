@@ -66,7 +66,7 @@ class IFModel(AbstractModel):
         generation_parameters.pop("negative_prompt", None)
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         if self.stageII_model != "None":
-            self.pipe = self.load_pipeline("pipe", IFSuperResolutionPipeline, f"DeepFloyd/IF-I-{self.stageII_model}-v1.0", {"safety_checker": None, "watermarker": None})
+            self.pipe = self.load_pipeline("pipe", IFSuperResolutionPipeline, f"DeepFloyd/IF-II-{self.stageII_model}-v1.0", {"safety_checker": None, "watermarker": None})
         generation_parameters["width"] = generation_parameters["width"]*4
         generation_parameters["height"] = generation_parameters["height"]*4
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
