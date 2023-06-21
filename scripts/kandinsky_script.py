@@ -32,21 +32,21 @@ def reload_model():
         torch.cuda.empty_cache()
 
 def unload_kandinsky_model():
-    pipe_prior = getattr(shared, 'pipe_prior', None)
-
-    if pipe_prior is not None:
-        del shared.pipe_prior
+    if shared.kandinsky_model.pipe_prior is not None:
+        del shared.kandinsky_model.pipe_prior
         devices.torch_gc()
         gc.collect()
         torch.cuda.empty_cache()
 
-    pipe = getattr(shared, 'pipe', None)
-
-    if pipe is not None:
-        del shared.pipe
+    if shared.kandinsky_model.pipe is not None:
+        del shared.kandinsky_model.pipe
         devices.torch_gc()
         gc.collect()
         torch.cuda.empty_cache()
+
+    if shared.kandinsky_model is not None:
+        del shared.kandinsky_model
+
     print("Unloaded Kandinsky model")
 
 class Script(scripts.Script):
@@ -54,7 +54,7 @@ class Script(scripts.Script):
         return "Kandinsky"
 
     def ui(self, is_img2img):
-        model_loading_help = gr.Markdown("To save VRAM unload the Stable Diffusion Model")
+        gr.Markdown("To save VRAM unload the Stable Diffusion Model")
 
         unload_sd_model = gr.Button("Unload Stable Diffusion Model")
         unload_sd_model.click(unload_model)
@@ -85,10 +85,15 @@ class Script(scripts.Script):
         p.prior_cfg_scale = prior_cfg_scale
         p.img1_strength = img1_strength
         p.img2_strength = img2_strength
+        p.sampler_name = "DDIM"
         p.init_image = getattr(p, 'init_images', None)
         p.extra_generation_params["Prior Inference Steps"] = inference_steps
         p.extra_generation_params["Prior CFG Scale"] = prior_cfg_scale
         p.extra_generation_params["Script"] = self.title()
-        kandinsky_model = KandinskyModel()
 
-        return kandinsky_model.process_images(p)
+        shared.kandinsky_model = getattr(shared, 'kandinsky_model', None)
+
+        if shared.kandinsky_model is None:
+            shared.kandinsky_model = KandinskyModel()
+
+        return shared.kandinsky_model.process_images(p)
