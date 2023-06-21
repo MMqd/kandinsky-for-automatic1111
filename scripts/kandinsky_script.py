@@ -67,7 +67,7 @@ class Script(scripts.Script):
             unload_sd_model
             reload_sd_model
             unload_k_model
-        inference_steps = gr.inputs.Slider(minimum=2, maximum=1024, step=1, label="Prior Inference Steps", default=128)
+        prior_inference_steps = gr.inputs.Slider(minimum=2, maximum=1024, step=1, label="Prior Inference Steps", default=128)
         prior_cfg_scale = gr.inputs.Slider(minimum=1, maximum=20, step=0.5, label="Prior CFG Scale", default=4)
 
         with gr.Accordion("Image Mixing", open=False):
@@ -75,19 +75,19 @@ class Script(scripts.Script):
             img2_strength = gr.inputs.Slider(minimum=-2, maximum=2, label="Interpolate Image 2 Strength (image below)", default=0.5)
             extra_image = gr.inputs.Image()
 
-        inputs = [extra_image, inference_steps, prior_cfg_scale, img1_strength, img2_strength]
+        inputs = [extra_image, prior_inference_steps, prior_cfg_scale, img1_strength, img2_strength]
 
         return inputs
 
-    def run(self, p, extra_image, inference_steps, prior_cfg_scale, img1_strength, img2_strength) -> Processed:
+    def run(self, p, extra_image, prior_inference_steps, prior_cfg_scale, img1_strength, img2_strength) -> Processed:
         p.extra_image = extra_image
-        p.inference_steps = inference_steps
+        p.prior_inference_steps = prior_inference_steps
         p.prior_cfg_scale = prior_cfg_scale
         p.img1_strength = img1_strength
         p.img2_strength = img2_strength
         p.sampler_name = "DDIM"
         p.init_image = getattr(p, 'init_images', None)
-        p.extra_generation_params["Prior Inference Steps"] = inference_steps
+        p.extra_generation_params["Prior Inference Steps"] = prior_inference_steps
         p.extra_generation_params["Prior CFG Scale"] = prior_cfg_scale
         p.extra_generation_params["Script"] = self.title()
 

@@ -103,13 +103,15 @@ def truncate_string(string, max_length=images.max_filename_part_length, encoding
 
 class AbstractModel():
     attention_type = 'auto'#'max'
-    cache_dir = os.path.join(os.path.join(script_path, 'models'), "Kandinsky")
     cond_stage_key = "edit"
     sd_checkpoint_info = KandinskyCheckpointInfo()
     sd_model_hash = sd_checkpoint_info.shorthash
     cached_image_embeds = {"settings": {}, "embeds": (None, None)}
 
-    def load_pipeline(self, pipe_name: str, pipeline: DiffusionPipeline, pretrained_model_name_or_path):
+    def __init__(self):
+        self.cache_dir = os.path.join(os.path.join(script_path, 'models'), '')
+
+    def load_pipeline(self, pipe_name: str, pipeline: DiffusionPipeline, pretrained_model_name_or_path, move_to_cuda = True):
         pipe = getattr(self, pipe_name, None)
 
         if not isinstance(pipe, pipeline) or pipe is None:
@@ -118,13 +120,18 @@ class AbstractModel():
                 gc.collect()
                 devices.torch_gc()
             pipe = pipeline.from_pretrained(pretrained_model_name_or_path, variant="fp16", torch_dtype=torch.float16, cache_dir=self.cache_dir)#, scheduler=dpm)
-            pipe.to("cuda")
+            if move_to_cuda:
+                pipe.to("cuda")
+            else:
+                pipe.enable_sequential_cpu_offload()
             #pipe.enable_sequential_cpu_offload()
             pipe.enable_attention_slicing(self.attention_type)
             #pipe.unet.to(memory_format=torch.channels_last)
             setattr(self, pipe_name, pipe)
-        else:
+        elif move_to_cuda:
             pipe.to("cuda")
+        else:
+            pipe.enable_sequential_cpu_offload()
 
         return pipe
 
@@ -222,7 +229,7 @@ class AbstractModel():
 
 
             prior_settings_dict = {"generator": generators, "prompt": p.prompt, "guidance_scale": p.prior_cfg_scale}
-            prior_settings_dict["num_inference_steps"] = p.inference_steps
+            prior_settings_dict["num_inference_steps"] = p.prior_inference_steps
 
             if p.negative_prompt != "":
                 prior_settings_dict["negative_prompt"] = p.negative_prompt
