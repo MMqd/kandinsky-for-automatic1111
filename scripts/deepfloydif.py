@@ -1,6 +1,6 @@
 from modules import errors
 try:
-    from diffusers import IFPipeline
+    from diffusers import IFPipeline, IFSuperResolutionPipeline
 except ImportError as e:
     errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
 
@@ -34,14 +34,12 @@ class IFModel(AbstractModel):
 
     def load_encoder(self):
         try:
-            if self.stageI_model == "None":
-                self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageII_model}-v1.0", {"safety_checker": None, "watermarker": None})
-            else:
-                self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
+            self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
         except FileNotFoundError as fe:
             errors.print_error_explanation(f'File {fe.filename} not found. Did you forget the Hugging Face token?')
 
     def run_encoder(self, prior_settings_dict):
+        tup = None
         if self.pipe is None:
             errors.print_error_explanation(f'Stage I {self.stageI_model} not loaded. Did you forget the Hugging Face token?')
         elif prior_settings_dict.get("negative_prompt", None) is None:
@@ -67,10 +65,22 @@ class IFModel(AbstractModel):
         generation_parameters.pop("prompt", None)
         generation_parameters.pop("negative_prompt", None)
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
+        if self.stageII_model != "None":
+            self.pipe = self.load_pipeline("pipe", IFSuperResolutionPipeline, f"DeepFloyd/IF-I-{self.stageII_model}-v1.0", {"safety_checker": None, "watermarker": None})
+        generation_parameters["width"] = generation_parameters["width"]*4
+        generation_parameters["height"] = generation_parameters["height"]*4
+        result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         return result_images
 
     def img2img(self, p, generation_parameters, b):
-        pass
+        generation_parameters["prompt_embeds"] = generation_parameters["image_embeds"]
+        generation_parameters.pop("image_embeds", None)
+        generation_parameters["negative_prompt_embeds"] = generation_parameters["negative_image_embeds"]
+        generation_parameters.pop("negative_image_embeds", None)
+        generation_parameters.pop("prompt", None)
+        generation_parameters.pop("negative_prompt", None)
+        result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
+        return result_images
 
     def inpaint(self, p, generation_parameters, b):
         pass
