@@ -27,7 +27,7 @@ class KandinskyModel(AbstractModel):
     pipe_prior = None
 
     def __init__(self):
-        self.cache_dir = os.path.join(os.path.join(script_path, 'models'), 'Kandinsky')
+        AbstractModel.__init__(self, "Kandinsky")
 
     def mix_images(self, p, generation_parameters, b, result_images):
         if p.extra_image != [] and p.extra_image is not None:
