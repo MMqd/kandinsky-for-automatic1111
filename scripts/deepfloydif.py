@@ -29,7 +29,7 @@ class IFModel(AbstractModel):
         self.cache_dir = os.path.join(os.path.join(script_path, 'models'), 'IF')
 
     def load_encoder(self):
-        pass
+        self.pipe = self.load_pipeline("pipe", IFPipeline, "DeepFloyd/IF-I-XL-v1.0")
 
     def run_encoder(self, prior_settings_dict):
         if prior_settings_dict.get("negative_prompt", None) is None:
@@ -48,7 +48,6 @@ class IFModel(AbstractModel):
         pass
 
     def txt2img(self, p, generation_parameters, b):
-        self.pipe = self.load_pipeline("pipe", IFPipeline, "DeepFloyd/IF-I-XL-v1.0")
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         return result_images
 
