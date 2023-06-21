@@ -16,6 +16,8 @@ from modules.processing import Processed, StableDiffusionProcessing
 from modules.shared import opts, state
 from modules.sd_models import CheckpointInfo
 from modules.paths_internal import script_path
+from huggingface_hub import login
+
 
 import sys
 sys.path.append('extensions/kandinsky-for-automatic1111/scripts')
@@ -29,7 +31,10 @@ class IFModel(AbstractModel):
         self.cache_dir = os.path.join(os.path.join(script_path, 'models'), 'IF')
 
     def load_encoder(self):
-        self.pipe = self.load_pipeline("pipe", IFPipeline, "DeepFloyd/IF-I-XL-v1.0")
+        try:
+            self.pipe = self.load_pipeline("pipe", IFPipeline, "DeepFloyd/IF-I-XL-v1.0")
+        except FileNotFoundError as fe:
+            errors.print_error_explanation(f'File {fe.filename} not found. Did you forget the Hugging Face token?')
 
     def run_encoder(self, prior_settings_dict):
         if prior_settings_dict.get("negative_prompt", None) is None:

@@ -1,3 +1,10 @@
+from modules import errors
+try:
+    from huggingface_hub import login
+except ImportError as e:
+    errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
+
+
 import sys
 import torch
 import gradio as gr
@@ -62,11 +69,13 @@ class Script(scripts.Script):
             reload_sd_model
             unload_k_model
 
-        inputs = []
+        token_textbox = gr.inputs.Textbox(label="Hugging Face Token", type="password")
+
+        inputs = [token_textbox]
 
         return inputs
 
-    def run(self, p) -> Processed:
+    def run(self, p, token) -> Processed:
         p.sampler_name = "DDPM"
         p.init_image = getattr(p, 'init_images', None)
         p.extra_generation_params["Script"] = self.title()
@@ -75,5 +84,7 @@ class Script(scripts.Script):
 
         if shared.if_model is None:
             shared.if_model = IFModel()
+            if token != "":
+                login(token=token)
 
         return shared.if_model.process_images(p)
