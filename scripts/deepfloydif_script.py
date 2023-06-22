@@ -84,6 +84,8 @@ class Script(scripts.Script):
         p.sampler_name = "DDPM"
         p.init_image = getattr(p, 'init_images', None)
         p.extra_generation_params["Script"] = "if"
+        p.width2 = p.width * 4
+        p.height2 = p.height * 4
 
         shared.if_model = getattr(shared, 'if_model', None)
 
@@ -93,5 +95,12 @@ class Script(scripts.Script):
             shared.if_model.stageII_model = stageII_model
             if token != "":
                 login(token=token)
+
+        shared.if_model.stages = []
+        if stageI_model != "None":
+            shared.if_model.stages.append(1)
+
+        if stageII_model != "None":
+            shared.if_model.stages.append(2)
 
         return shared.if_model.process_images(p)

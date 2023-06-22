@@ -109,10 +109,10 @@ class AbstractModel():
     cached_image_embeds = {"settings": {}, "embeds": (None, None)}
 
     def __init__(self, cache_dir=""):
-        self.stages = 1
+        self.stages = [1]
         self.cache_dir = os.path.join(os.path.join(script_path, 'models'), cache_dir)
 
-    def load_pipeline(self, pipe_name: str, pipeline: DiffusionPipeline, pretrained_model_name_or_path, move_to_cuda = True, kwargs={}):
+    def load_pipeline(self, pipe_name: str, pipeline, pretrained_model_name_or_path, move_to_cuda = True, kwargs = {}):
         pipe = getattr(self, pipe_name, None)
 
         if not isinstance(pipe, pipeline) or pipe is None:
@@ -120,7 +120,16 @@ class AbstractModel():
                 pipe = None
                 gc.collect()
                 devices.torch_gc()
-            pipe = pipeline.from_pretrained(pretrained_model_name_or_path, variant="fp16", torch_dtype=torch.float16, cache_dir=self.cache_dir, **kwargs)#, scheduler=dpm)
+            kwargs.update({
+                "pretrained_model_name_or_path": pretrained_model_name_or_path,
+                "variant": "fp16",
+                "torch_dtype": torch.float16,
+                "cache_dir": self.cache_dir
+            })
+            if callable(pipeline):
+                pipeline(**kwargs)
+            else:
+                pipe = pipeline.from_pretrained(**kwargs)#, scheduler=dpm)
             if move_to_cuda:
                 pipe.to("cuda")
             else:
@@ -165,7 +174,16 @@ class AbstractModel():
 
         return f"{all_prompts[index]}{negative_prompt_text}\n{generation_params_text}".strip()
 
-    def load_encoder(self ):
+    def next_stage(self):
+        pass
+
+    def sd_processing_to_dict_encoder(self, p: StableDiffusionProcessing):
+        raise NotImplementedError("sd_processing_to_dict_encoder method not implemented")
+
+    def sd_processing_to_dict_generator(self, p: StableDiffusionProcessing):
+        raise NotImplementedError("sd_processing_to_dict_generator method not implemented")
+
+    def load_encoder(self):
         raise NotImplementedError("load_encoder method not implemented")
 
     def run_encoder(self, prior_settings_dict):
@@ -213,32 +231,25 @@ class AbstractModel():
             else:
                 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-            torch.manual_seed(p.seed)
-
             if p.init_image is not None:
                 p.init_image = p.init_image[0]
-                print(f"{p.init_image.width}, {p.init_image.height}")
+                #print(f"{p.init_image.width}, {p.init_image.height}")
                 p.init_image = images.flatten(p.init_image, opts.img2img_background_color)
 
             state.job = "Prior"
             print("Starting Prior")
             if p.batch_size * p.n_iter > 1:
-                generators = []
+                p.generators = []
                 for i in range(p.batch_size * p.n_iter):
-                    generators.append(torch.Generator().manual_seed(p.seed + i))
+                    p.generators.append(torch.Generator().manual_seed(p.seed + i))
             else:
-                generators = torch.Generator().manual_seed(p.seed)
+                p.generators = torch.Generator().manual_seed(p.seed)
 
 
-            prior_settings_dict = {"generator": generators, "prompt": p.prompt}
-            prior_settings_dict["prior_cfg_scale"] = getattr(p, "prior_cfg_scale", 4)
-            prior_settings_dict["num_inference_steps"] = getattr(p, "prior_inference_steps", 20)
+            prior_settings_dict = self.sd_processing_to_dict_encoder(p)
 
-            if p.negative_prompt != "":
-                prior_settings_dict["negative_prompt"] = p.negative_prompt
-
-            if self.cached_image_embeds["settings"] == prior_settings_dict:
-                image_embeds, negative_image_embeds = self.cached_image_embeds["embeds"]
+            if self.cached_image_embeds["settings"] == prior_settings_dict and self.cached_image_embeds["embeds"] is not None:
+                p.image_embeds, p.negative_image_embeds = self.cached_image_embeds["embeds"]
             else:
                 self.load_encoder()
 
@@ -249,10 +260,10 @@ class AbstractModel():
                     torch.cuda.empty_cache()
                     return KProcessed(p, [], p.seed, initial_info, all_seeds=p.all_seeds)
 
-                image_embeds, negative_image_embeds = self.run_encoder(prior_settings_dict)
+                p.image_embeds, p.negative_image_embeds = self.run_encoder(prior_settings_dict)
 
                 self.cached_image_embeds["settings"] = prior_settings_dict
-                self.cached_image_embeds["embeds"] = (image_embeds, negative_image_embeds)
+                self.cached_image_embeds["embeds"] = (p.image_embeds, p.negative_image_embeds)
 
             self.encoder_to_cpu()
             devices.torch_gc()
@@ -261,13 +272,26 @@ class AbstractModel():
 
             print("Finished Prior")
 
-            generation_parameters = {"prompt": p.prompt, "negative_prompt": p.negative_prompt, "image_embeds": image_embeds, "negative_image_embeds": negative_image_embeds,
-                                    "height": p.height, "width": p.width, "guidance_scale": p.cfg_scale, "num_inference_steps": p.steps}
+            generation_parameters = self.sd_processing_to_dict_generator(p)
 
             state.job_no = p.n_iter * p.batch_size
 
-            for stage in range(self.stages):
+            if p.init_image is None:
+                generate_type = "txt2img"
+            elif p.image_mask is None:
+                generate_type = "img2img"
+            else:
+                generate_type = "inpaint"
+
+            result_images = []
+
+            for stage in self.stages:
+                self.current_stage = stage
+
                 for b in range(p.n_iter):
+                    if b < len(result_images):
+                        p.init_image = result_images[b]
+
                     if state.interrupted:
                         break
 
@@ -275,81 +299,80 @@ class AbstractModel():
                         initial_infos.append(self.create_infotext(p, p.all_prompts, p.all_seeds, p.all_seeds, iteration=b, position_in_batch=batchid))
 
                     state.job = "Generating"
-                    if p.init_image is None:
+                    if generate_type == "txt2img":
                         result_images = self.txt2img(p, generation_parameters, b)
 
-                    else:
-                        if p.image_mask is None:
-                            if p.denoising_strength != 0:
-                                result_images = self.img2img(p, generation_parameters, b)
-                            else:
-                                result_images = [p.init_image] * p.batch_size
-
+                    elif generate_type == "img2img":
+                        if p.denoising_strength == 0:
+                            result_images = [p.init_image] * p.batch_size
                         else:
-                            crop_region = None
-                            if not p.inpainting_mask_invert:
-                                p.image_mask = ImageOps.invert(p.image_mask)
+                            result_images = self.img2img(p, generation_parameters, b)
 
-                            if p.mask_blur > 0:
-                                p.image_mask = p.image_mask.filter(ImageFilter.GaussianBlur(p.mask_blur))
+                    else:
+                        crop_region = None
+                        if not p.inpainting_mask_invert:
+                            p.image_mask = ImageOps.invert(p.image_mask)
 
-                            mask = p.image_mask
-                            mask = mask.convert('L')
-                            new_init_image = p.init_image
+                        if p.mask_blur > 0:
+                            p.image_mask = p.image_mask.filter(ImageFilter.GaussianBlur(p.mask_blur))
 
-                            if p.inpaint_full_res:
+                        mask = p.image_mask
+                        mask = mask.convert('L')
+                        new_init_image = p.init_image
+
+                        if p.inpaint_full_res:
+                            mask = ImageOps.invert(mask)
+                            crop_region = masking.get_crop_region(np.array(mask), p.inpaint_full_res_padding)
+                            crop_region = masking.expand_crop_region(crop_region, p.width, p.height, mask.width, mask.height)
+                            x1, y1, x2, y2 = crop_region
+                            mask = mask.crop(crop_region)
+                            mask = images.resize_image(2, mask, p.width, p.height)
+                            p.paste_to = (x1, y1, x2-x1, y2-y1)
+
+                            new_init_image = new_init_image.crop(crop_region)
+                            new_init_image = images.resize_image(2, new_init_image, p.width, p.height)
+                            mask = ImageOps.invert(mask)
+                        else:
+                            p.image_mask = images.resize_image(p.resize_mode, p.image_mask, p.width, p.height)
+                            np_mask = np.array(p.image_mask)
+                            np_mask = np.clip((np_mask.astype(np.float32)) * 2, 0, 255).astype(np.uint8)
+                            mask = Image.fromarray(np_mask)
+
+                        p.new_init_image = new_init_image
+                        p.new_mask = mask
+                        result_images = self.inpaint(p, generation_parameters, b)
+
+                        if p.inpaint_full_res:
+                            for i in range(len(result_images)):
+                                paste_loc = p.paste_to
+                                x, y, w, h = paste_loc
+                                base_image = Image.new('RGBA', (p.init_image.width, p.init_image.height))
                                 mask = ImageOps.invert(mask)
-                                crop_region = masking.get_crop_region(np.array(mask), p.inpaint_full_res_padding)
-                                crop_region = masking.expand_crop_region(crop_region, p.width, p.height, mask.width, mask.height)
-                                x1, y1, x2, y2 = crop_region
-                                mask = mask.crop(crop_region)
-                                mask = images.resize_image(2, mask, p.width, p.height)
-                                p.paste_to = (x1, y1, x2-x1, y2-y1)
+                                result_images[i] = images.resize_image(1, result_images[i], w, h)
+                                mask = images.resize_image(1, mask, w, h)
+                                mask = mask.convert('L')
 
-                                new_init_image = new_init_image.crop(crop_region)
-                                new_init_image = images.resize_image(2, new_init_image, p.width, p.height)
-                                mask = ImageOps.invert(mask)
-                            else:
-                                p.image_mask = images.resize_image(p.resize_mode, p.image_mask, p.width, p.height)
-                                np_mask = np.array(p.image_mask)
-                                np_mask = np.clip((np_mask.astype(np.float32)) * 2, 0, 255).astype(np.uint8)
-                                mask = Image.fromarray(np_mask)
+                                base_image.paste(result_images[i], (x, y), mask=mask)
+                                image = p.init_image
+                                image = image.convert('RGBA')
+                                image.alpha_composite(base_image)
+                                image.convert('RGB')
+                                processing.apply_color_correction(processing.setup_color_correction(p.init_image), image)
+                                result_images[i] = image
+                        #else:
+                        #    for i in range(len(result_images)):
+                        #        base_image = result_images[i]
+                        #        base_image = base_image.convert('RGBA')
+                        #        mask = ImageOps.invert(mask)
+                        #        mask = mask.convert('L')
+                        #        base_image.putalpha(mask)
 
-                            p.new_init_image = new_init_image
-                            p.new_mask = mask
-                            result_images = self.inpaint(p, generation_parameters, b)
-
-                            if p.inpaint_full_res:
-                                for i in range(len(result_images)):
-                                    paste_loc = p.paste_to
-                                    x, y, w, h = paste_loc
-                                    base_image = Image.new('RGBA', (p.init_image.width, p.init_image.height))
-                                    mask = ImageOps.invert(mask)
-                                    result_images[i] = images.resize_image(1, result_images[i], w, h)
-                                    mask = images.resize_image(1, mask, w, h)
-                                    mask = mask.convert('L')
-
-                                    base_image.paste(result_images[i], (x, y), mask=mask)
-                                    image = p.init_image
-                                    image = image.convert('RGBA')
-                                    image.alpha_composite(base_image)
-                                    image.convert('RGB')
-                                    processing.apply_color_correction(processing.setup_color_correction(p.init_image), image)
-                                    result_images[i] = image
-                            #else:
-                            #    for i in range(len(result_images)):
-                            #        base_image = result_images[i]
-                            #        base_image = base_image.convert('RGBA')
-                            #        mask = ImageOps.invert(mask)
-                            #        mask = mask.convert('L')
-                            #        base_image.putalpha(mask)
-
-                            #        image = images.resize_image(1, init_image, p.width, p.height)
-                            #        image = image.convert('RGBA')
-                            #        image.alpha_composite(base_image)
-                            #        image.convert('RGB')
-                            #        processing.apply_color_correction(processing.setup_color_correction(init_image), image)
-                            #        result_images[i] = image
+                        #        image = images.resize_image(1, init_image, p.width, p.height)
+                        #        image = image.convert('RGBA')
+                        #        image.alpha_composite(base_image)
+                        #        image.convert('RGB')
+                        #        processing.apply_color_correction(processing.setup_color_correction(init_image), image)
+                        #        result_images[i] = image
 
                     for imgid, result_image in enumerate(result_images):
                         images.save_image(result_image, p.outpath_samples, "", p.all_seeds[imgid],
@@ -362,10 +385,13 @@ class AbstractModel():
                     state.current_image = result_images[0]
                     state.nextjob()
 
+                    result_images = []
+
                 self.main_model_to_cpu()
+                self.next_stage()
 
             #del pipe
-            del generators
+            del p.generators
             gc.collect()
             devices.torch_gc()
             torch.cuda.empty_cache()
@@ -374,7 +400,7 @@ class AbstractModel():
 
             # Save Grid
             unwanted_grid_because_of_img_count = len(output_images) < 2 and opts.grid_only_if_multiple
-            if (opts.return_grid or opts.grid_save) and not p.do_not_save_grid and not unwanted_grid_because_of_img_count:
+            if (opts.return_grid or opts.grid_save) and not (p.do_not_save_grid or unwanted_grid_because_of_img_count):
                 grid = images.image_grid(output_images, p.batch_size)
 
                 if opts.return_grid:
@@ -384,7 +410,13 @@ class AbstractModel():
                     output_images.insert(0, grid)
 
                 if opts.grid_save:
-                    images.save_image(grid, p.outpath_grids, "grid", p.all_seeds[0], truncate_string(p.all_prompts[0]), opts.grid_format, info=initial_info, short_filename=not opts.grid_extended_filename, p=p, grid=True)
+                    images.save_image(grid, p.outpath_grids, "grid",
+                                      p.all_seeds[0],
+                                      truncate_string(p.all_prompts[0]),
+                                      opts.grid_format, info=initial_info,
+                                      short_filename=not
+                                      opts.grid_extended_filename, p=p,
+                                      grid=True)
 
 
             p.n_iter = 1
@@ -400,4 +432,4 @@ class AbstractModel():
             torch.cuda.empty_cache()
             if str(re).startswith('CUDA out of memory.'):
                 print("OutOfMemoryError: CUDA out of memory.")
-            return
+        return

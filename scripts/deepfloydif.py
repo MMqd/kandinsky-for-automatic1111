@@ -28,9 +28,10 @@ class IFModel(AbstractModel):
     pipe = None
 
     def __init__(self):
+        AbstractModel.__init__(self, "IF")
         self.stageI_model = "XL"
         self.stageII_model = "L"
-        AbstractModel.__init__(self, "IF")
+        self.stages = []
 
     def load_encoder(self):
         try:
@@ -55,30 +56,39 @@ class IFModel(AbstractModel):
         pass
 
     def cleanup_on_error(self):
-        pass
+        del self.pipe
+        gc.collect()
+        devices.torch_gc()
+
+    def next_stage(self):
+        self.cleanup_on_error()
+
+    def sd_processing_to_dict_encoder(self, p: StableDiffusionProcessing):
+        torch.manual_seed(p.seed)
+        parameters_dict = {"generator": p.generators, "prompt": p.prompt}
+
+        if p.negative_prompt != "":
+            parameters_dict["negative_prompt"] = p.negative_prompt
+
+        return parameters_dict
+
+    def sd_processing_to_dict_generator(self, p: StableDiffusionProcessing):
+        generation_parameters = {#"prompt": p.prompt, "negative_prompt": p.negative_prompt,
+                                 "prompt_embeds": p.image_embeds, "negative_prompt_embeds": p.negative_image_embeds,
+                                 "height": p.height, "width": p.width, "guidance_scale": p.cfg_scale, "num_inference_steps": p.steps}
+        return generation_parameters
 
     def txt2img(self, p, generation_parameters, b):
-        generation_parameters["prompt_embeds"] = generation_parameters["image_embeds"]
-        generation_parameters.pop("image_embeds", None)
-        generation_parameters["negative_prompt_embeds"] = generation_parameters["negative_image_embeds"]
-        generation_parameters.pop("negative_image_embeds", None)
-        generation_parameters.pop("prompt", None)
-        generation_parameters.pop("negative_prompt", None)
-        result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
-        if self.stageII_model != "None":
-            self.pipe = self.load_pipeline("pipe", IFSuperResolutionPipeline, f"DeepFloyd/IF-II-{self.stageII_model}-v1.0", {"safety_checker": None, "watermarker": None})
-        generation_parameters["width"] = generation_parameters["width"]*4
-        generation_parameters["height"] = generation_parameters["height"]*4
+        if self.current_stage == 1:
+            self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
+        elif self.current_stage == 2:
+            generation_parameters["width"] = p.width2
+            generation_parameters["height"] = p.height2
+            self.pipe = self.load_pipeline("pipe", IFSuperResolutionPipeline, f"DeepFloyd/IF-II-{self.stageII_model}-v1.0", {"image": p.init_image, "safety_checker": None, "watermarker": None})
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         return result_images
 
     def img2img(self, p, generation_parameters, b):
-        generation_parameters["prompt_embeds"] = generation_parameters["image_embeds"]
-        generation_parameters.pop("image_embeds", None)
-        generation_parameters["negative_prompt_embeds"] = generation_parameters["negative_image_embeds"]
-        generation_parameters.pop("negative_image_embeds", None)
-        generation_parameters.pop("prompt", None)
-        generation_parameters.pop("negative_prompt", None)
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         return result_images
 

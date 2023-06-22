@@ -72,6 +72,23 @@ class KandinskyModel(AbstractModel):
     def main_model_to_cpu(self):
         self.pipe.to("cpu")
 
+    def sd_processing_to_dict_encoder(self, p: StableDiffusionProcessing):
+        torch.manual_seed(0)
+        parameters_dict = {"generator": p.generators, "prompt": p.prompt}
+        parameters_dict["guidance_scale"] = p.prior_cfg_scale#getattr(p, "prior_cfg_scale", 4)
+        parameters_dict["num_inference_steps"] = p.prior_inference_steps#getattr(p, "prior_inference_steps", 20)
+
+        if p.negative_prompt != "":
+            parameters_dict["negative_prompt"] = p.negative_prompt
+
+        return parameters_dict
+
+    def sd_processing_to_dict_generator(self, p: StableDiffusionProcessing):
+        generation_parameters = {"prompt": p.prompt, "negative_prompt": p.negative_prompt, "image_embeds": p.image_embeds, "negative_image_embeds": p.negative_image_embeds,
+                                "height": p.height, "width": p.width, "guidance_scale": p.cfg_scale, "num_inference_steps": p.steps}
+        return generation_parameters
+
+
     def cleanup_on_error(self):
         if self.pipe_prior is not None:
             self.main_model_to_cpu()
