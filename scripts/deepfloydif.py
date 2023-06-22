@@ -1,6 +1,6 @@
 from modules import errors
 try:
-    from diffusers import IFPipeline, IFSuperResolutionPipeline
+    from diffusers import IFPipeline, IFSuperResolutionPipeline, IFImg2ImgPipeline, IFImg2ImgSuperResolutionPipeline
 except ImportError as e:
     errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
 
@@ -100,13 +100,13 @@ class IFModel(AbstractModel):
             if p.disable_stage_I:
                 result_images = [p.init_image for _ in range(p.batch_size)]
             else:
-                self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
+                self.pipe = self.load_pipeline("pipe", IFImg2ImgPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
                 result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
 
         elif self.current_stage == 2:
             generation_parameters["width"] = p.width2
             generation_parameters["height"] = p.height2
-            self.pipe = self.load_pipeline("pipe", IFSuperResolutionPipeline, f"DeepFloyd/IF-II-{self.stageII_model}-v1.0", {"safety_checker": None, "watermarker": None})
+            self.pipe = self.load_pipeline("pipe", IFImg2ImgSuperResolutionPipeline, f"DeepFloyd/IF-II-{self.stageII_model}-v1.0", {"safety_checker": None, "watermarker": None})
             result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         return result_images
 
