@@ -80,12 +80,17 @@ class IFModel(AbstractModel):
 
     def txt2img(self, p, generation_parameters, b):
         if self.current_stage == 1:
-            self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
+            if p.disable_stage_I:
+                result_images = [p.init_image for _ in range(p.batch_size)]
+            else:
+                self.pipe = self.load_pipeline("pipe", IFPipeline, f"DeepFloyd/IF-I-{self.stageI_model}-v1.0", {"safety_checker": None, "watermarker": None})
+                result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
+
         elif self.current_stage == 2:
             generation_parameters["width"] = p.width2
             generation_parameters["height"] = p.height2
             self.pipe = self.load_pipeline("pipe", IFSuperResolutionPipeline, f"DeepFloyd/IF-II-{self.stageII_model}-v1.0", {"image": p.init_image, "safety_checker": None, "watermarker": None})
-        result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
+            result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         return result_images
 
     def img2img(self, p, generation_parameters, b):
