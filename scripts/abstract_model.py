@@ -112,7 +112,7 @@ class AbstractModel():
         self.stages = [1]
         self.cache_dir = os.path.join(os.path.join(script_path, 'models'), cache_dir)
 
-    def load_pipeline(self, pipe_name: str, pipeline, pretrained_model_name_or_path, move_to_cuda = True, kwargs = {}):
+    def load_pipeline(self, pipe_name: str, pipeline: DiffusionPipeline, pretrained_model_name_or_path, move_to_cuda = True, kwargs = {}):
         pipe = getattr(self, pipe_name, None)
 
         if not isinstance(pipe, pipeline) or pipe is None:
@@ -126,10 +126,7 @@ class AbstractModel():
                 "torch_dtype": torch.float16,
                 "cache_dir": self.cache_dir
             })
-            if callable(pipeline):
-                pipeline(**kwargs)
-            else:
-                pipe = pipeline.from_pretrained(**kwargs)#, scheduler=dpm)
+            pipe = pipeline.from_pretrained(**kwargs)#, scheduler=dpm)
             if move_to_cuda:
                 pipe.to("cuda")
             else:
