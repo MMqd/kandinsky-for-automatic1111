@@ -70,22 +70,26 @@ class Script(scripts.Script):
 
         stageI_model = None
         stageII_model = None
+        checkbox = None
         with gr.Row():
-            stageI_model = gr.inputs.Dropdown(label="Stage I Model Type", choices=["None", "M", "L", "XL"], default="XL")
+            with gr.Column():
+                stageI_model = gr.inputs.Dropdown(label="Stage I Model Type", choices=["M", "L", "XL"], default="XL")
+                checkbox = gr.inputs.Checkbox(label="Disable Stage I", default=False)
             stageII_model = gr.inputs.Dropdown(label="Stage II Model Type", choices=["None", "M", "L"], default="L")
 
         token_textbox = gr.inputs.Textbox(label="Hugging Face Token", type="password")
 
-        inputs = [token_textbox, stageI_model, stageII_model]
+        inputs = [token_textbox, stageI_model, stageII_model, checkbox]
 
         return inputs
 
-    def run(self, p, token, stageI_model, stageII_model) -> Processed:
+    def run(self, p, token, stageI_model, stageII_model, disable_stage_I) -> Processed:
         p.sampler_name = "DDPM"
         p.init_image = getattr(p, 'init_images', None)
         p.extra_generation_params["Script"] = "if"
         p.width2 = p.width * 4
         p.height2 = p.height * 4
+        p.disable_stage_I = disable_stage_I
 
         shared.if_model = getattr(shared, 'if_model', None)
 
@@ -97,8 +101,7 @@ class Script(scripts.Script):
                 login(token=token)
 
         shared.if_model.stages = []
-        if stageI_model != "None":
-            shared.if_model.stages.append(1)
+        shared.if_model.stages.append(1)
 
         if stageII_model != "None":
             shared.if_model.stages.append(2)
