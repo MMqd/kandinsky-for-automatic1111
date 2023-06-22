@@ -124,7 +124,10 @@ class AbstractModel():
                 "pretrained_model_name_or_path": pretrained_model_name_or_path,
                 "variant": "fp16",
                 "torch_dtype": torch.float16,
-                "cache_dir": self.cache_dir
+                "cache_dir": self.cache_dir,
+                "resume_download": True,
+                #"local_files_only": True,
+                "low_cpu_mem_usage": True
             })
             pipe = pipeline.from_pretrained(**kwargs)#, scheduler=dpm)
             if move_to_cuda:
@@ -300,7 +303,7 @@ class AbstractModel():
                         result_images = self.txt2img(p, generation_parameters, b)
 
                     elif generate_type == "img2img":
-                        if p.denoising_strength == 0:
+                        if p.denoising_strength == 0 and self.current_stage == 1:
                             result_images = [p.init_image] * p.batch_size
                         else:
                             result_images = self.img2img(p, generation_parameters, b)
