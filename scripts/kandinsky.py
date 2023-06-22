@@ -41,7 +41,7 @@ class KandinskyModel(AbstractModel):
                         [img1, img2],
                         [p.img1_strength, p.img2_strength],
                         #negative_prior_prompt=p.negative_prompt,
-                        num_inference_steps=p.inference_steps,
+                        num_inference_steps=p.prior_inference_steps,
                         num_images_per_prompt = 1,
                         #num_images_per_prompt = p.batch_size,
                         generator=torch.Generator().manual_seed(p.seed + i + b * p.batch_size),
