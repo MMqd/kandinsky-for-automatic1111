@@ -284,13 +284,14 @@ class AbstractModel():
                 generate_type = "inpaint"
 
             result_images = []
+            presult_images = []
 
             for stage in self.stages:
                 self.current_stage = stage
 
                 for b in range(p.n_iter):
-                    if b < len(result_images):
-                        p.init_image = result_images[b]
+                    if len(presult_images) > 0:
+                        p.init_image = presult_images[b]
 
                     if state.interrupted:
                         break
@@ -385,7 +386,8 @@ class AbstractModel():
                     state.current_image = result_images[0]
                     state.nextjob()
 
-                    result_images = []
+                presult_images = result_images[:]
+                result_images = []
 
                 self.main_model_to_cpu()
                 self.next_stage()

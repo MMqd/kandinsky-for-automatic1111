@@ -32,22 +32,25 @@ def reload_model():
         torch.cuda.empty_cache()
 
 def unload_kandinsky_model():
-    if shared.kandinsky_model.pipe_prior is not None:
-        del shared.kandinsky_model.pipe_prior
-        devices.torch_gc()
-        gc.collect()
-        torch.cuda.empty_cache()
+    if getattr(shared, "kandinsky_model", None) is not None:
+        if getattr(shared.kandinsky_model, "pipe_prior", None) is not None:
+            del shared.kandinsky_model.pipe_prior
+            devices.torch_gc()
+            gc.collect()
+            torch.cuda.empty_cache()
 
-    if shared.kandinsky_model.pipe is not None:
-        del shared.kandinsky_model.pipe
-        devices.torch_gc()
-        gc.collect()
-        torch.cuda.empty_cache()
+        if getattr(shared.kandinsky_model, "pipe", None) is not None:
+            del shared.kandinsky_model.pipe
+            devices.torch_gc()
+            gc.collect()
+            torch.cuda.empty_cache()
 
-    if shared.kandinsky_model is not None:
         del shared.kandinsky_model
+        print("Unloaded Kandinsky model")
 
-    print("Unloaded Kandinsky model")
+    else:
+        print("No Kandinsky model to unload")
+
 
 class Script(scripts.Script):
     def title(self):
