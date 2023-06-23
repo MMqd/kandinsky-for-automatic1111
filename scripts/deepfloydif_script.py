@@ -38,7 +38,7 @@ def reload_model():
         gc.collect()
         torch.cuda.empty_cache()
 
-def unload_kandinsky_model():
+def unload_if_model():
     if getattr(shared, "if_model", None) is not None:
         if getattr(shared.if_model, "pipe_prior", None) is not None:
             del shared.if_model.pipe_prior
@@ -57,7 +57,6 @@ def unload_kandinsky_model():
 
     else:
         print("No IF model to unload")
-
 
 class Script(scripts.Script):
     def title(self):
