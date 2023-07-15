@@ -66,12 +66,14 @@ class KProcessed(processing.Processed):
         self.infotexts = infotexts or [info]
 
 class KandinskyCheckpointInfo(CheckpointInfo):
-    def __init__(self, filename="kandinsky21"):
+    def __init__(self, name="kandinsky", filename=None, version="2.1"):
+        name += version
+        if filename is None:
+            filename = name
         self.filename = filename
-        name = "kandinsky21"
         self.name = name
-        self.name_for_extra = "kandinsky21_extra"#os.path.splitext(os.path.basename(filename))[0]
-        self.model_name = "kandinsky21"#os.path.splitext(name.replace("/", "_").replace("\\", "_"))[0]
+        self.name_for_extra = f"{name}_extra"#os.path.splitext(os.path.basename(filename))[0]
+        self.model_name = f"{name}"#os.path.splitext(name.replace("/", "_").replace("\\", "_"))[0]
         self.hash = "0000000000000000000000000000000000000000000000000000000000000000"#model_hash(filename)
         self.sha256 = "0000000000000000000000000000000000000000000000000000000000000000"#hashes.sha256_from_cache(self.filename, "checkpoint/" + name)
         self.shorthash = self.sha256[0:10] if self.sha256 else None
@@ -104,13 +106,14 @@ def truncate_string(string, max_length=images.max_filename_part_length, encoding
 class AbstractModel():
     attention_type = 'auto'#'max'
     cond_stage_key = "edit"
-    sd_checkpoint_info = KandinskyCheckpointInfo()
-    sd_model_hash = sd_checkpoint_info.shorthash
     cached_image_embeds = {"settings": {}, "embeds": (None, None)}
 
-    def __init__(self, cache_dir=""):
+    def __init__(self, cache_dir="", version="0"):
         self.stages = [1]
         self.cache_dir = os.path.join(os.path.join(script_path, 'models'), cache_dir)
+        self.version = version
+        self.sd_checkpoint_info = KandinskyCheckpointInfo(version=self.version)
+        self.sd_model_hash = self.sd_checkpoint_info.shorthash
 
     def load_pipeline(self, pipe_name: str, pipeline: DiffusionPipeline, pretrained_model_name_or_path, move_to_cuda = True, kwargs = {}):
         pipe = getattr(self, pipe_name, None)

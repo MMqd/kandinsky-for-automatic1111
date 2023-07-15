@@ -4,18 +4,11 @@ try:
 except ImportError as e:
     errors.print_error_explanation('RESTART AUTOMATIC1111 COMPLETELY TO FINISH INSTALLING PACKAGES FOR kandinsky-for-automatic1111')
 
-
-import os
 import gc
 import torch
-import numpy as np
-from PIL import Image, ImageOps, ImageFilter
-from packaging import version
+from PIL import Image
 from modules import processing, shared, script_callbacks, images, devices, scripts, masking, sd_models, generation_parameters_copypaste, sd_vae#, sd_samplers
 from modules.processing import Processed, StableDiffusionProcessing
-from modules.shared import opts, state
-from modules.sd_models import CheckpointInfo
-from modules.paths_internal import script_path
 
 import sys
 sys.path.append('extensions/kandinsky-for-automatic1111/scripts')
@@ -26,8 +19,8 @@ class KandinskyModel(AbstractModel):
     pipe = None
     pipe_prior = None
 
-    def __init__(self):
-        AbstractModel.__init__(self, "Kandinsky")
+    def __init__(self, cache_dir="", version="2.1"):
+        AbstractModel.__init__(self, cache_dir="Kandinsky", version=version)
 
     def mix_images(self, p, generation_parameters, b, result_images):
         if p.extra_image != [] and p.extra_image is not None:
@@ -54,14 +47,14 @@ class KandinskyModel(AbstractModel):
                 p.extra_generation_params["Extra Image"] = ""#self.img2_name
 
                 self.pipe_prior.to("cpu")
-                self.pipe = self.load_pipeline("pipe", KandinskyPipeline, "kandinsky-community/kandinsky-2-1")
+                self.pipe = self.load_pipeline("pipe", KandinskyPipeline, f"kandinsky-community/kandinsky-{self.version}".replace(".", "-"))
 
                 result_images[i] = self.pipe(**generation_parameters, num_images_per_prompt=1).images[0]
                 self.pipe.to("cpu")
         return result_images
 
     def load_encoder(self):
-        self.pipe_prior = self.load_pipeline("pipe_prior", KandinskyPriorPipeline, "kandinsky-community/kandinsky-2-1-prior")
+        self.pipe_prior = self.load_pipeline("pipe_prior", KandinskyPriorPipeline, f"kandinsky-community/kandinsky-{self.version}-prior".replace(".", "-"))
 
     def run_encoder(self, prior_settings_dict):
         return self.pipe_prior(**prior_settings_dict).to_tuple()
@@ -97,16 +90,16 @@ class KandinskyModel(AbstractModel):
             self.encoder_to_cpu()
 
     def txt2img(self, p, generation_parameters, b):
-        self.pipe = self.load_pipeline("pipe", KandinskyPipeline, "kandinsky-community/kandinsky-2-1")
+        self.pipe = self.load_pipeline("pipe", KandinskyPipeline, f"kandinsky-community/kandinsky-{self.version}".replace(".", "-"), move_to_cuda = False)
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
         return self.mix_images(p, generation_parameters, b, result_images)
 
     def img2img(self, p, generation_parameters, b):
-        self.pipe = self.load_pipeline("pipe", KandinskyImg2ImgPipeline, "kandinsky-community/kandinsky-2-1")
+        self.pipe = self.load_pipeline("pipe", KandinskyImg2ImgPipeline, f"kandinsky-community/kandinsky-{self.version}".replace(".", "-"), move_to_cuda = False)
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size, image=p.init_image, strength=p.denoising_strength).images
         return self.mix_images(p, generation_parameters, b, result_images)
 
     def inpaint(self, p, generation_parameters, b):
-        self.pipe = self.load_pipeline("pipe", KandinskyInpaintPipeline, "kandinsky-community/kandinsky-2-1-inpaint")
+        self.pipe = self.load_pipeline("pipe", KandinskyInpaintPipeline, f"kandinsky-community/kandinsky-{self.version}-inpaint".replace(".", "-"), move_to_cuda = False)
         result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size, image=p.new_init_image, mask_image=p.new_mask).images
         return self.mix_images(p, generation_parameters, b, result_images)
