@@ -77,6 +77,7 @@ class Script(scripts.Script):
         with gr.Row():
             prior_inference_steps = gr.inputs.Slider(minimum=2, maximum=1024, step=1, label="Prior Inference Steps", default=128)
             prior_cfg_scale = gr.inputs.Slider(minimum=1, maximum=20, step=0.5, label="Prior CFG Scale", default=4)
+            model_version = gr.inputs.Dropdown(["2.1", "2.2"], label="Kandinsky Version", default="2.1")
 
         with gr.Accordion("Image Mixing", open=False):
             with gr.Row():
@@ -84,11 +85,11 @@ class Script(scripts.Script):
                 img2_strength = gr.inputs.Slider(minimum=-2, maximum=2, label="Interpolate Image 2 Strength (image below)", default=0.5)
             extra_image = gr.inputs.Image()
 
-        inputs = [extra_image, prior_inference_steps, prior_cfg_scale, img1_strength, img2_strength]
+        inputs = [extra_image, prior_inference_steps, prior_cfg_scale, model_version, img1_strength, img2_strength]
 
         return inputs
 
-    def run(self, p, extra_image, prior_inference_steps, prior_cfg_scale, img1_strength, img2_strength) -> Processed:
+    def run(self, p, extra_image, prior_inference_steps, prior_cfg_scale, model_version, img1_strength, img2_strength) -> Processed:
         p.extra_image = extra_image
         p.prior_inference_steps = prior_inference_steps
         p.prior_cfg_scale = prior_cfg_scale
@@ -102,7 +103,7 @@ class Script(scripts.Script):
 
         shared.kandinsky_model = getattr(shared, 'kandinsky_model', None)
 
-        if shared.kandinsky_model is None:
-            shared.kandinsky_model = KandinskyModel()
+        if shared.kandinsky_model is None or shared.kandinsky_model.version != model_version:
+            shared.kandinsky_model = KandinskyModel(version=model_version)
 
         return shared.kandinsky_model.process_images(p)
