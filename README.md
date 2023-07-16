@@ -1,10 +1,6 @@
 # Kandinsky 2.1 For Automatic1111 Extension
 Adds a script that runs the Kandinsky 2.1 model.
 
-## Disclaimer
-
-ALPHA VERSION NOT PRODUCTION-READY
-
 <strong>!!Note!!</strong> Progress bar not supported yet.
 
 ## Troubleshooting
