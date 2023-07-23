@@ -67,23 +67,23 @@ class KandinskyModel(AbstractModel):
             if self.pipe_prior is None:
                 self.pipe_prior = self.load_pipeline("pipe_prior", KandinskyPriorPipeline, f"kandinsky-community/kandinsky-{self.version}-prior".replace(".", "-"))
         elif self.version == "2.2":
+            if self.low_vram:
+                encoder_torch_type = torch.float32
+            else:
+                encoder_torch_type = torch.float16
+
+    #                 self.image_encoder = self.load_pipeline("image_encoder", CLIPVisionModelWithProjection, "kandinsky-community/kandinsky-2-2-prior",
+    #                                                      move_to_cuda=False, kwargs={"subfolder": 'image_encoder', "torch_dtype": encoder_torch_type}, enable_sequential_cpu_offload=False)
+
             if self.image_encoder is None:
-                if self.low_vram:
-                    encoder_torch_type = torch.float32
-                else:
-                    encoder_torch_type = torch.float16
-
-#                 self.image_encoder = self.load_pipeline("image_encoder", CLIPVisionModelWithProjection, "kandinsky-community/kandinsky-2-2-prior",
-#                                                      move_to_cuda=False, kwargs={"subfolder": 'image_encoder', "torch_dtype": encoder_torch_type}, enable_sequential_cpu_offload=False)
-
                 self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(
                     'kandinsky-community/kandinsky-2-2-prior',
                     subfolder='image_encoder',
                     cache_dir=os.path.join(self.models_path, "kandinsky22"),
-                   torch_dtype=encoder_torch_type,
+                    torch_dtype=encoder_torch_type,
                     low_cpu_mem_usage=True,
                     resume_download=True,
-#                     local_files_only=True
+    #                     local_files_only=True
                 )
 
                 if self.low_vram:
@@ -91,9 +91,10 @@ class KandinskyModel(AbstractModel):
                 else:
                     self.image_encoder = self.image_encoder.half().to("cuda")
 
-#                 self.pipe_prior = self.load_pipeline("pipe_prior", KandinskyV22PriorPipeline, "kandinsky-community/kandinsky-2-2-prior",
-#                                                      move_to_cuda=False, kwargs={"image_encoder": self.image_encoder, "torch_dtype": encoder_torch_type}, enable_sequential_cpu_offload=False)
+    #                 self.pipe_prior = self.load_pipeline("pipe_prior", KandinskyV22PriorPipeline, "kandinsky-community/kandinsky-2-2-prior",
+    #                                                      move_to_cuda=False, kwargs={"image_encoder": self.image_encoder, "torch_dtype": encoder_torch_type}, enable_sequential_cpu_offload=False)
 
+            if self.pipe_prior is None:
                 self.pipe_prior = KandinskyV22PriorPipeline.from_pretrained(
                     'kandinsky-community/kandinsky-2-2-prior',
                     image_encoder=self.image_encoder,
@@ -101,7 +102,7 @@ class KandinskyModel(AbstractModel):
                     cache_dir=os.path.join(self.models_path, "kandinsky22"),
                     low_cpu_mem_usage=True,
                     resume_download=True,
-#                     local_files_only=True
+    #                     local_files_only=True
                 )
 
                 if self.low_vram:
@@ -109,38 +110,57 @@ class KandinskyModel(AbstractModel):
                 else:
                     self.pipe_prior.to("cuda")
 
-#                 self.unet = self.load_pipeline("unet", UNet2DConditionModel, "kandinsky-community/kandinsky-2-2-decoder",
-#                                                      move_to_cuda=False, kwargs={"subfolder": 'unet'}, enable_sequential_cpu_offload=False).half().to("cuda")
+    #                 self.unet = self.load_pipeline("unet", UNet2DConditionModel, "kandinsky-community/kandinsky-2-2-decoder",
+    #                                                      move_to_cuda=False, kwargs={"subfolder": 'unet'}, enable_sequential_cpu_offload=False).half().to("cuda")
 
-#                 self.pipe = self.load_pipeline("pipe", KandinskyV22Pipeline, "kandinsky-community/kandinsky-2-2-decoder",
-#                                                      move_to_cuda=False, kwargs={"unet": self.unet}, enable_sequential_cpu_offload=False).to("cuda")
+    #                 self.pipe = self.load_pipeline("pipe", KandinskyV22Pipeline, "kandinsky-community/kandinsky-2-2-decoder",
+    #                                                      move_to_cuda=False, kwargs={"unet": self.unet}, enable_sequential_cpu_offload=False).to("cuda")
+            self.load_pipeline22()
 
-                self.unet = UNet2DConditionModel.from_pretrained(
-                    'kandinsky-community/kandinsky-2-2-decoder',
-                    subfolder='unet',
-                    cache_dir=os.path.join(self.models_path, "kandinsky22"),
-                    torch_dtype=torch.float16,
-                    low_cpu_mem_usage=True,
-                    resume_download=True,
+    def load_pipeline22(self):
+        if self.unet is None:
+            self.unet = UNet2DConditionModel.from_pretrained(
+                'kandinsky-community/kandinsky-2-2-decoder',
+                subfolder='unet',
+                cache_dir=os.path.join(self.models_path, "kandinsky22"),
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=True,
+                resume_download=True,
 #                     local_files_only=True
-                ).half().to("cuda")
+            ).half().to("cuda")
 
-                self.pipe = KandinskyV22Pipeline.from_pretrained(
-                    'kandinsky-community/kandinsky-2-2-decoder',
-                    unet=self.unet,
-                    torch_dtype=torch.float16,
-                    cache_dir=os.path.join(self.models_path, "kandinsky22"),
-                    low_cpu_mem_usage=True,
-                    resume_download=True,
+
+        if self.pipe is None:
+            self.pipe = KandinskyV22Pipeline.from_pretrained(
+                'kandinsky-community/kandinsky-2-2-decoder',
+                unet=self.unet,
+                torch_dtype=torch.float16,
+                cache_dir=os.path.join(self.models_path, "kandinsky22"),
+                low_cpu_mem_usage=True,
+                resume_download=True,
 #                     local_files_only=True
-                ).to("cuda")
+            ).to("cuda")
 
     def run_encoder(self, prior_settings_dict):
         self.main_model_to_cpu()
         return self.pipe_prior(**prior_settings_dict).to_tuple()
 
     def encoder_to_cpu(self):
-        if self.low_vram:
+        if not self.low_vram:
+            if self.image_encoder is not None:
+                self.image_encoder.to("cpu")
+
+            if self.pipe_prior is not None:
+                self.pipe_prior.to("cpu")
+
+            if self.pipe is not None:
+                self.pipe.to("cuda")
+
+            if self.unet is not None:
+                self.unet.to("cuda")
+
+    def main_model_to_cpu(self):
+        if not self.low_vram:
             if self.pipe is not None:
                 self.pipe.to("cpu")
 
@@ -173,20 +193,6 @@ class KandinskyModel(AbstractModel):
         gc.collect()
         torch.cuda.empty_cache()
 
-    def main_model_to_cpu(self):
-        if self.low_vram:
-            if self.pipe is not None:
-                self.pipe.to("cuda")
-
-            if self.unet is not None:
-                self.unet.to("cuda")
-
-            if self.image_encoder is not None:
-                self.image_encoder.to("cpu")
-
-            if self.pipe_prior is not None:
-                self.pipe_prior.to("cpu")
-
     def sd_processing_to_dict_encoder(self, p: StableDiffusionProcessing):
         torch.manual_seed(0)
         parameters_dict = {"generator": p.generators, "prompt": p.prompt}
@@ -218,16 +224,29 @@ class KandinskyModel(AbstractModel):
     def txt2img(self, p, generation_parameters, b):
         if self.version == "2.1":
             self.pipe = self.load_pipeline("pipe", KandinskyPipeline, f"kandinsky-community/kandinsky-{self.version}".replace(".", "-"), move_to_cuda=move_to_cuda)
+            result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
+            result_images = self.mix_images(p, generation_parameters, b, result_images)
+        elif self.version == "2.2":
+            result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
 
-        result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
-        return self.mix_images(p, generation_parameters, b, result_images)
+        return result_images
 
     def img2img(self, p, generation_parameters, b):
-        self.pipe = self.load_pipeline("pipe", KandinskyImg2ImgPipeline, f"kandinsky-community/kandinsky-{self.version}".replace(".", "-"), move_to_cuda=move_to_cuda)
-        result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size, image=p.init_image, strength=p.denoising_strength).images
-        return self.mix_images(p, generation_parameters, b, result_images)
+        if self.version == "2.1":
+            self.pipe = self.load_pipeline("pipe", KandinskyImg2ImgPipeline, f"kandinsky-community/kandinsky-{self.version}".replace(".", "-"), move_to_cuda=move_to_cuda)
+            result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size, image=p.init_image, strength=p.denoising_strength).images
+            result_images = self.mix_images(p, generation_parameters, b, result_images)
+        elif self.version == "2.2":
+            result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
+
+        return result_images
 
     def inpaint(self, p, generation_parameters, b):
-        self.pipe = self.load_pipeline("pipe", KandinskyInpaintPipeline, f"kandinsky-community/kandinsky-{self.version}-inpaint".replace(".", "-"), move_to_cuda=move_to_cuda)
-        result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size, image=p.new_init_image, mask_image=p.new_mask).images
-        return self.mix_images(p, generation_parameters, b, result_images)
+        if self.version == "2.1":
+            self.pipe = self.load_pipeline("pipe", KandinskyInpaintPipeline, f"kandinsky-community/kandinsky-{self.version}-inpaint".replace(".", "-"), move_to_cuda=move_to_cuda)
+            result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size, image=p.new_init_image, mask_image=p.new_mask).images
+            result_images = self.mix_images(p, generation_parameters, b, result_images)
+        elif self.version == "2.2":
+            result_images = self.pipe(**generation_parameters, num_images_per_prompt=p.batch_size).images
+
+        return result_images

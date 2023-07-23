@@ -164,6 +164,9 @@ Result:
 
 Any other settings such as seed variations, will have no effect on generated images.
 
+## Known Bugs
+* Potential memory leak when switching models, seems like a problem with [diffusers]{https://github.com/huggingface/diffusers/issues/2284}
+
 ## Limitations
 * Uses the diffusers image generation pipeline to run Kandinsky (Only "kandinsky-community/kandinsky-2-1" is supported on Hugging Face, so no custom models)
 * No controlnet
