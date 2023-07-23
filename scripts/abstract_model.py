@@ -111,6 +111,7 @@ class AbstractModel():
     def __init__(self, cache_dir="", version="0"):
         self.stages = [1]
         self.cache_dir = os.path.join(os.path.join(script_path, 'models'), cache_dir)
+        self.models_path = os.path.join(script_path, 'models')
         self.version = version
         self.sd_checkpoint_info = KandinskyCheckpointInfo(version=self.version)
         self.sd_model_hash = self.sd_checkpoint_info.shorthash
@@ -429,12 +430,12 @@ class AbstractModel():
 
             return KProcessed(p, all_result_images, p.seed, initial_info, all_seeds=p.all_seeds)
 
-        except RuntimeError as re:
+        except torch.cuda.OutOfMemoryError as re:
+            print(re)
+        finally:
             self.cleanup_on_error()
-
             gc.collect()
             devices.torch_gc()
             torch.cuda.empty_cache()
-            if str(re).startswith('CUDA out of memory.'):
-                print("OutOfMemoryError: CUDA out of memory.")
+            self.unload()
         return

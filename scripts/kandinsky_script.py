@@ -33,17 +33,18 @@ def reload_model():
 
 def unload_kandinsky_model():
     if getattr(shared, "kandinsky_model", None) is not None:
-        if getattr(shared.kandinsky_model, "pipe_prior", None) is not None:
-            del shared.kandinsky_model.pipe_prior
-            devices.torch_gc()
-            gc.collect()
-            torch.cuda.empty_cache()
+        getattr(shared, "kandinsky_model", None).unload()
+        #if getattr(shared.kandinsky_model, "pipe_prior", None) is not None:
+        #    del shared.kandinsky_model.pipe_prior
+        #    devices.torch_gc()
+        #    gc.collect()
+        #    torch.cuda.empty_cache()
 
-        if getattr(shared.kandinsky_model, "pipe", None) is not None:
-            del shared.kandinsky_model.pipe
-            devices.torch_gc()
-            gc.collect()
-            torch.cuda.empty_cache()
+        #if getattr(shared.kandinsky_model, "pipe", None) is not None:
+        #    del shared.kandinsky_model.pipe
+        #    devices.torch_gc()
+        #    gc.collect()
+        #    torch.cuda.empty_cache()
 
         del shared.kandinsky_model
         print("Unloaded Kandinsky model")
@@ -75,9 +76,12 @@ class Script(scripts.Script):
             unload_k_model.click(unload_kandinsky_model)
 
         with gr.Row():
-            prior_inference_steps = gr.inputs.Slider(minimum=2, maximum=1024, step=1, label="Prior Inference Steps", default=128)
+            prior_inference_steps = gr.inputs.Slider(minimum=2, maximum=1024, step=1, label="Prior Inference Steps", default=64)
             prior_cfg_scale = gr.inputs.Slider(minimum=1, maximum=20, step=0.5, label="Prior CFG Scale", default=4)
-            model_version = gr.inputs.Dropdown(["2.1", "2.2"], label="Kandinsky Version", default="2.1")
+
+        model_version = gr.inputs.Dropdown(["2.1", "2.2"], label="Kandinsky Version", default="2.2")
+        gr.Markdown("Kandinsky 2.2 requires much more RAM")
+        low_vram = gr.inputs.Checkbox(label="Kandinsky 2.2 Low VRAM", default=True)
 
         with gr.Accordion("Image Mixing", open=False):
             with gr.Row():
@@ -85,25 +89,30 @@ class Script(scripts.Script):
                 img2_strength = gr.inputs.Slider(minimum=-2, maximum=2, label="Interpolate Image 2 Strength (image below)", default=0.5)
             extra_image = gr.inputs.Image()
 
-        inputs = [extra_image, prior_inference_steps, prior_cfg_scale, model_version, img1_strength, img2_strength]
+        inputs = [extra_image, prior_inference_steps, prior_cfg_scale, model_version, img1_strength, img2_strength, low_vram]
 
         return inputs
 
-    def run(self, p, extra_image, prior_inference_steps, prior_cfg_scale, model_version, img1_strength, img2_strength) -> Processed:
+    def run(self, p, extra_image, prior_inference_steps, prior_cfg_scale, model_version, img1_strength, img2_strength, low_vram) -> Processed:
         p.extra_image = extra_image
         p.prior_inference_steps = prior_inference_steps
         p.prior_cfg_scale = prior_cfg_scale
         p.img1_strength = img1_strength
         p.img2_strength = img2_strength
-        p.sampler_name = "DDIM"
+        if model_version == "2.1":
+            p.sampler_name = "DDIM"
+        elif model_version == "2.2":
+            p.sampler_name = "DDPM"
         p.init_image = getattr(p, 'init_images', None)
         p.extra_generation_params["Prior Inference Steps"] = prior_inference_steps
         p.extra_generation_params["Prior CFG Scale"] = prior_cfg_scale
         p.extra_generation_params["Script"] = self.title()
+        p.extra_generation_params["Kandinsky Version"] = model_version
 
         shared.kandinsky_model = getattr(shared, 'kandinsky_model', None)
 
-        if shared.kandinsky_model is None or shared.kandinsky_model.version != model_version:
+        if shared.kandinsky_model is None or shared.kandinsky_model.version != model_version or (model_version == "2.2" and shared.kandinsky_model.low_vram != low_vram):
             shared.kandinsky_model = KandinskyModel(version=model_version)
+            shared.kandinsky_model.low_vram = low_vram
 
         return shared.kandinsky_model.process_images(p)
