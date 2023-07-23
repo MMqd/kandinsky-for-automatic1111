@@ -110,21 +110,17 @@ class AbstractModel():
 
     def __init__(self, cache_dir="", version="0"):
         self.stages = [1]
-        self.cache_dir = os.path.join(os.path.join(script_path, 'models'), cache_dir)
         self.models_path = os.path.join(script_path, 'models')
+        self.cache_dir = os.path.join(self.models_path, cache_dir)
         self.version = version
         self.sd_checkpoint_info = KandinskyCheckpointInfo(version=self.version)
         self.sd_model_hash = self.sd_checkpoint_info.shorthash
 
-    def load_pipeline(self, pipe_name: str, pipeline: DiffusionPipeline, pretrained_model_name_or_path, move_to_cuda = True, kwargs = {}):
+    def load_pipeline(self, pipe_name: str, pipeline: DiffusionPipeline, pretrained_model_name_or_path, move_to_cuda = True, kwargs = {}, enable_sequential_cpu_offload = True):
         pipe = getattr(self, pipe_name, None)
 
         if not isinstance(pipe, pipeline) or pipe is None:
-            if pipe is not None:
-                pipe = None
-                gc.collect()
-                devices.torch_gc()
-            kwargs.update({
+            new_kwargs = {
                 "pretrained_model_name_or_path": pretrained_model_name_or_path,
                 "variant": "fp16",
                 "torch_dtype": torch.float16,
@@ -132,11 +128,17 @@ class AbstractModel():
                 "resume_download": True,
                 #"local_files_only": True,
                 "low_cpu_mem_usage": True
-            })
+            }
+            new_kwargs.update(kwargs)
+            kwargs = new_kwargs
+
             pipe = pipeline.from_pretrained(**kwargs)#, scheduler=dpm)
+            gc.collect()
+            devices.torch_gc()
+
             if move_to_cuda:
                 pipe.to("cuda")
-            else:
+            elif enable_sequential_cpu_offload:
                 pipe.enable_sequential_cpu_offload()
             #pipe.enable_sequential_cpu_offload()
             pipe.enable_attention_slicing(self.attention_type)
@@ -144,7 +146,7 @@ class AbstractModel():
             setattr(self, pipe_name, pipe)
         elif move_to_cuda:
             pipe.to("cuda")
-        else:
+        elif enable_sequential_cpu_offload:
             pipe.enable_sequential_cpu_offload()
 
         return pipe

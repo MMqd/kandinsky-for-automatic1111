@@ -33,18 +33,7 @@ def reload_model():
 
 def unload_kandinsky_model():
     if getattr(shared, "kandinsky_model", None) is not None:
-        getattr(shared, "kandinsky_model", None).unload()
-        #if getattr(shared.kandinsky_model, "pipe_prior", None) is not None:
-        #    del shared.kandinsky_model.pipe_prior
-        #    devices.torch_gc()
-        #    gc.collect()
-        #    torch.cuda.empty_cache()
-
-        #if getattr(shared.kandinsky_model, "pipe", None) is not None:
-        #    del shared.kandinsky_model.pipe
-        #    devices.torch_gc()
-        #    gc.collect()
-        #    torch.cuda.empty_cache()
+        shared.kandinsky_model.unload()
 
         del shared.kandinsky_model
         print("Unloaded Kandinsky model")
