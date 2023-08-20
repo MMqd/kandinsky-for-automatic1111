@@ -69,7 +69,7 @@ class Script(scripts.Script):
             prior_cfg_scale = gr.inputs.Slider(minimum=1, maximum=20, step=0.5, label="Prior CFG Scale", default=4)
 
         model_version = gr.inputs.Dropdown(["2.1", "2.2"], label="Kandinsky Version", default="2.2")
-        gr.Markdown("Kandinsky 2.2 requires much more RAM")
+        gr.Markdown("Kandinsky 2.2 requires much more RAM, and only txt2img is currently supported")
         low_vram = gr.inputs.Checkbox(label="Kandinsky 2.2 Low VRAM", default=True)
 
         with gr.Accordion("Image Mixing", open=False):

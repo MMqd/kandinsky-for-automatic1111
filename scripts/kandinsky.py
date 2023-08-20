@@ -21,13 +21,14 @@ from abstract_model import AbstractModel
 move_to_cuda=False
 
 class KandinskyModel(AbstractModel):
+    image_encoder = None
+    pipe_prior = None
+    pipe = None
+    unet = None
+    low_vram = True
+
     def __init__(self, cache_dir="", version="2.1"):
         AbstractModel.__init__(self, cache_dir="kandinsky22", version=version)
-        self.image_encoder = None
-        self.pipe_prior = None
-        self.pipe = None
-        self.unet = None
-        self.low_vram = True
 
     def mix_images(self, p, generation_parameters, b, result_images):
         if p.extra_image != [] and p.extra_image is not None:

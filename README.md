@@ -140,13 +140,16 @@ Result:
 
 ## Features
 * Kandinsky 2.1
-* Kandinsky 2.2 with VRAM optimizations
-* Text to image
-* Batching
-* Img2img
-* Inpainting
-* Image mixing
-* vram optimizations (16 bit float and attention slicing)
+    * Text to image
+    * Batching
+    * Img2img
+    * Inpainting
+    * Image mixing
+    * VRAM optimizations (16 bit float and attention slicing)
+* Kandinsky 2.2
+    * Text to image
+    * Batching
+    * VRAM optimizations (16 bit float and attention slicing)
 
 ## Supported Settings
 * prompt
