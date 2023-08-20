@@ -1,7 +1,7 @@
-# Kandinsky 2.1 For Automatic1111 Extension
-Adds a script that runs the Kandinsky 2.1 model.
+# Kandinsky For Automatic1111 Extension
+Adds a script that run Kandinsky 2.X models. Kandinsky 2.2 can generate larger images, but it is much slower to use with VRAM optimizations.
 
-<strong>!!Note!!</strong> Progress bar not supported yet.
+<strong>!!Note!!</strong> Progress bar not supported, view terminal progress bar instead.
 
 ## Troubleshooting
 * Ignore the warning `Pipelines loaded with torch_dtype=torch.float16 cannot run with cpu device...` the Kandinsky model or prior is being moved to RAM to save VRAM.
@@ -14,7 +14,6 @@ Adds a script that runs the Kandinsky 2.1 model.
     * The real error is probably `CUDA out of memory` above the `AttributeError`.
     * <strong>Solution:</strong> In the script section, try reloading the stable diffusion model, and unloading it.
 
-
 ## Examples
 The following are non cherry-picked examples, with various settings and resolutions.
 
@@ -22,9 +21,11 @@ The following are non cherry-picked examples, with various settings and resoluti
    <img src="https://github.com/MMqd/kandinsky-for-automatic1111/blob/main/images/sky,%20daylight,%20realistic,%20high%20quality,%20in%20focus,%2016k,%20HQ.jpg?raw=true" width="25%" alt="center image" />
 </p>
 <strong>Prompt: sky, daylight, realistic, high quality, in focus, 16k, HQ</strong><br>
+Model: Kandinsky 2.1<br>
 Steps: 64<br>
 Sampler: Default<br>
-CFG scale: 7<br>
+CFG Scale: 7<br>
+Prior CFG Scale: 7<br>
 Seed: 3479955<br>
 Size: 1024x1024<br>
 Inference Steps: 128<br>
@@ -35,9 +36,11 @@ Inference Steps: 128<br>
 </p>
 <strong>Prompt: As the sun sets, les arbres whisper, mientras el río serpentea gracefully, отражая прекрасные colors, majestic mountains stand tall, evoking tranquillité et harmonie, 空中舞动着美丽的蝴蝶, 空と地球の神秘なつながり, रंगबिरंगी वस्तुएं।</strong> (from chatgpt)<br>
 In English: As the sun sets, the trees whisper, while the river gracefully meanders, reflecting beautiful colors, majestic mountains stand tall, evoking tranquility and harmony, butterflies dance in the air, the mysterious connection between sky and earth, colorful objects.<br>
+Model: Kandinsky 2.1<br>
 Steps: 64<br>
 Sampler: Default<br>
-CFG scale: 7<br>
+CFG Scale: 7<br>
+Prior CFG Scale: 7<br>
 Seed: 3479955<br>
 Size: 768x768<br>
 Inference Steps: 128<br>
@@ -47,21 +50,25 @@ Inference Steps: 128<br>
    <img src="https://github.com/MMqd/kandinsky-for-automatic1111/blob/main/images/cat,%20realistic,%20high%20quality,%204k.jpg?raw=true" width="25%" alt="center image" />
 </p>
 <strong>Prompt: cat, realistic, high quality, 4k</strong><br>
+Model: Kandinsky 2.1<br>
 Steps: 64<br>
 Sampler: Default<br>
-CFG scale: 7<br>
+CFG Scale: 7<br>
+Prior CFG Scale: 7<br>
 Seed: 3479955<br>
 Size: 1024x1024<br>
 Inference Steps: 128<br>
-
+<br>
 
 <p align="center">
    <img src="https://github.com/MMqd/kandinsky-for-automatic1111/blob/main/images/spaceship,%20retro,%20realistic,%20high%20quality,%204k.jpg?raw=true" width="25%" alt="center image" />
 </p>
 <strong>Prompt: spaceship, retro, realistic, high quality, 4k</strong><br>
+Model: Kandinsky 2.1<br>
 Steps: 64<br>
 Sampler: Default<br>
-CFG scale: 7<br>
+CFG Scale: 7<br>
+Prior CFG Scale: 7<br>
 Seed: 3479955<br>
 Size: 512x512<br>
 Inference Steps: 128<br>
@@ -71,9 +78,11 @@ Inference Steps: 128<br>
    <img src="https://github.com/MMqd/kandinsky-for-automatic1111/blob/main/images/cyberpunk%20city,%20distopian,%20high%20quality,%204k.jpg?raw=true" width="25%" alt="center image" />
 </p>
 <strong>Prompt: cyberpunk city, distopian, high quality, 4k</strong><br>
+Model: Kandinsky 2.1<br>
 Steps: 64<br>
 Sampler: Default<br>
-CFG scale: 3<br>
+CFG Scale: 3<br>
+Prior CFG Scale: 3<br>
 Seed: 3479955<br>
 Size: 768x768<br>
 Inference Steps: 128<br>
@@ -82,9 +91,11 @@ Inference Steps: 128<br>
 Combine images and/or prompts together. Can be used for style transfer, and combining a background with a subject.
 
 <strong>Prompt: cat, high quality, 4k</strong><br>
+Model: Kandinsky 2.1<br>
 Steps: 64<br>
 Sampler: Default<br>
-CFG scale: 7<br>
+CFG Scale: 7<br>
+Prior CFG Scale: 7<br>
 Seed: 3479955494<br>
 Size: 1536x768<br>
 Inference Steps: 128<br>
@@ -123,17 +134,22 @@ Result:
 * Seeds are somewhat consistent across different resolutions
 * Changing sampling steps keeps the same image, while changing quality
 * The seed is not as important as the prompt, the subjects/compositions across seeds are very similar
-* It is very easy to "overcook" images with prompts, if this happens remove keywords or reduce CFG scale
+* It is very easy to "overcook" images with prompts, if this happens remove keywords or reduce CFG Scale
     * Negative prompts aren't needed, so "low quality, bad quality..." can be ommited
     * Short positive prompts are good, too many keywords confuse the ai
 
 ## Features
-* Text to image
-* Batching
-* Img2img
-* Inpainting
-* Image mixing
-* vram optimizations (16 bit float and attention slicing)
+* Kandinsky 2.1
+    * Text to image
+    * Batching
+    * Img2img
+    * Inpainting
+    * Image mixing
+    * VRAM optimizations (16 bit float and attention slicing)
+* Kandinsky 2.2
+    * Text to image
+    * Batching
+    * VRAM optimizations (16 bit float and attention slicing)
 
 ## Supported Settings
 * prompt
@@ -152,7 +168,7 @@ Result:
 Any other settings such as seed variations, will have no effect on generated images.
 
 ## Known Bugs
-* Ram memory leak (still investigating)
+* Potential memory leak when switching models, seems like a problem with [diffusers]{https://github.com/huggingface/diffusers/issues/2284}
 
 ## Limitations
 * Uses the diffusers image generation pipeline to run Kandinsky (Only "kandinsky-community/kandinsky-2-1" is supported on Hugging Face, so no custom models)
