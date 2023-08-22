@@ -1,5 +1,6 @@
 # Kandinsky For Automatic1111 Extension
-Adds a script that run Kandinsky 2.X models. Kandinsky 2.2 can generate larger images, but it is much slower to use with VRAM optimizations.
+Adds a script that run Kandinsky 2.X models (2.1 and 2.2).
+Kandinsky 2.2 can generate larger images, but it is much slower to use with VRAM optimizations.
 
 <strong>!!Note!!</strong> Progress bar not supported, view terminal progress bar instead.
 
