@@ -232,9 +232,12 @@ class AbstractModel():
 
             p.sd_model_hash = self.sd_checkpoint_info.sd_model_hash
 
-            if version.parse(torch.version.cuda) < version.parse("10.2"):
-                torch.use_deterministic_algorithms(True)
-            else:
+            try:
+                if version.parse(torch.version.cuda) < version.parse("10.2"):
+                    torch.use_deterministic_algorithms(True)
+                else:
+                    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+            except:
                 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
             if p.init_image is not None:
